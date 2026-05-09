@@ -1,0 +1,19 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: namis-mysql-verify
+    environment:
+      MYSQL_DATABASE: namis_yogur
+      MYSQL_USER: namis
+      MYSQL_PASSWORD: namis_secret
+      MYSQL_ROOT_PASSWORD: root_secret_verify
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot_secret_verify"]
+      interval: 4s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
