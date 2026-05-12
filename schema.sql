@@ -4,15 +4,15 @@ CREATE TABLE clientes (
     fecha_registro DATE DEFAULT (CURRENT_DATE)
 );
 
-CREATE TABLE productos (
+CREATE TABLE productos ( -- PRODUCTO QUE SE VENDE
     id_producto INT AUTO_INCREMENT PRIMARY KEY,
     nombre_producto VARCHAR(100) NOT NULL, 
-    tamano_g INT, -- 300, 500 o 750
+    tamano_g INT, -- 350, 500 o 750
     es_endulzado BOOLEAN, -- 1 para Sí, 0 para Natural
-    tiene_granola BOOLEAN, -- 1 para Sí, 0 para No
     precio_actual DECIMAL(10, 2) NOT NULL, -- precio minorista (venta habitual)
     precio_mayorista DECIMAL(10, 2) NULL, -- NULL si el producto no se vende por mayor
-    costo_actual DECIMAL(10, 2) NOT NULL
+    costo_actual DECIMAL(10, 2) NOT NULL -- Se debe actualizar cada vez que cambia el precio del insumo 
+    -- otra opción es removerlo y que se calcule el costo actual de la receta
 );
 
 CREATE TABLE promociones (
@@ -28,8 +28,9 @@ CREATE TABLE promociones (
 CREATE TABLE ventas (
     id_venta INT AUTO_INCREMENT PRIMARY KEY,
     id_cliente INT NOT NULL,
-    fecha DATE DEFAULT (CURRENT_DATE),
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
     medio_pago VARCHAR(50), -- 'Transferencia', 'Efectivo', etc.
+    red_social VARCHAR(50), -- 'Facebook', 'Instagram', etc.
     requiere_envio BOOLEAN DEFAULT FALSE,
     costo_envio DECIMAL(10, 2) DEFAULT 0.00,
     id_promocion INT NULL, -- Puede ser NULL si no hay promo aplicada
@@ -51,18 +52,24 @@ CREATE TABLE detalle_ventas (
     FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
 );
 
-CREATE TABLE insumos (
+CREATE TABLE insumos ( -- MATERIA PRIMA
     id_insumo INT AUTO_INCREMENT PRIMARY KEY,
     nombre_insumo VARCHAR(100) NOT NULL UNIQUE,
-    unidad_medida VARCHAR(20) NOT NULL, -- Por ejemplo: 'ml', 'gramos', 'unidades'
-    cantidad_paquete DECIMAL(10, 2) NOT NULL, -- Cuánto trae el paquete que compras
-    precio_paquete DECIMAL(10, 2) NOT NULL, -- Cuánto pagaste por ese paquete
-    fecha_ultima_actualizacion DATE DEFAULT (CURRENT_DATE)
+    unidad_medida VARCHAR(20) NOT NULL -- Ej: 'ml', 'gramos', 'unidades'
 );
+
+CREATE TABLE insumos_historial_precios ( -- HISTORIAL DE PRECIOS DE LA MATERIA PRIMA
+    id_historial INT AUTO_INCREMENT PRIMARY KEY,
+    id_insumo INT NOT NULL,
+    cantidad_paquete DECIMAL(10, 2) NOT NULL, 
+    precio_paquete DECIMAL(10, 2) NOT NULL,   
+    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_insumo) REFERENCES insumos(id_insumo) ON DELETE CASCADE
+); -- El precio de los insumos es el último que se registró (el más reciente)
 
 CREATE TABLE recetas (
     id_receta INT AUTO_INCREMENT PRIMARY KEY,
-    id_producto INT NOT NULL,
+    id_producto INT NOT NULL, -- PUEDE INCLUIR PRODUCTOS YA CREADOS (YOGURT POR EJEMPLO)
     id_insumo INT NOT NULL,
     cantidad_necesaria DECIMAL(10, 2) NOT NULL, -- Cuánto usas de la unidad_medida para un solo pote
     FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
