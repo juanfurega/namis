@@ -4,6 +4,7 @@ from namis.models.base import Base
 from namis.models.cliente import Cliente
 from namis.models.detalle_venta import DetalleVenta
 from namis.models.insumo import Insumo
+from namis.models.insumo_historial import InsumoHistorialPrecio
 from namis.models.producto import Producto
 from namis.models.promocion import Promocion
 from namis.models.receta import Receta
@@ -14,6 +15,7 @@ __all__ = [
     "Cliente",
     "DetalleVenta",
     "Insumo",
+    "InsumoHistorialPrecio",
     "Producto",
     "Promocion",
     "Receta",

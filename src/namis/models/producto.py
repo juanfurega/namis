@@ -21,7 +21,6 @@ class Producto(Base):
     nombre_producto: Mapped[str] = mapped_column(String(100), nullable=False)
     tamano_g: Mapped[int | None] = mapped_column(Integer)
     es_endulzado: Mapped[bool | None] = mapped_column(Boolean)
-    tiene_granola: Mapped[bool | None] = mapped_column(Boolean)
     precio_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     precio_mayorista: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     costo_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
