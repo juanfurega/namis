@@ -11,10 +11,13 @@ from namis.exceptions import VentaNoEncontradaError
 from namis.models.detalle_venta import DetalleVenta
 from namis.models.venta import Venta
 from namis.schemas.balance import (
+    ClienteHistorialDia,
     DiaCalendario,
+    HistorialDiaPorCliente,
     LineaVentaHistorial,
     ResumenDia,
     ResumenMesCalendario,
+    VentaHistorialConCliente,
     VentaHistorialDetalle,
 )
 from namis.utils.money import money
@@ -52,8 +55,8 @@ def _a_historial(venta: Venta) -> VentaHistorialDetalle:
     promo = venta.promocion
     return VentaHistorialDetalle(
         id_venta=venta.id_venta,
+        id_cliente=venta.id_cliente,
         fecha=venta.fecha or datetime.now(),
-        nombre_cliente=venta.cliente.nombre,
         medio_pago=venta.medio_pago,
         red_social=venta.red_social,
         nombre_promocion=promo.nombre_promocion if promo else None,
@@ -101,16 +104,62 @@ def _ventas_en_rango(session: Session, desde: date, hasta: date) -> list[Venta]:
     )
 
 
-def obtener_detalle_venta(session: Session, id_venta: int) -> VentaHistorialDetalle:
-    return _a_historial(_cargar_venta(session, id_venta))
+def _agrupar_ventas_por_cliente(
+    ventas: list[VentaHistorialDetalle],
+    nombres: dict[int, str],
+) -> list[ClienteHistorialDia]:
+    por_cliente: dict[int, list[VentaHistorialDetalle]] = {}
+    for v in ventas:
+        por_cliente.setdefault(v.id_cliente, []).append(v)
+
+    clientes: list[ClienteHistorialDia] = []
+    for id_cliente, ventas_cliente in por_cliente.items():
+        total_cobrado = money(sum((v.total_cobrado for v in ventas_cliente), Decimal("0.00")))
+        total_ganancia = money(sum((v.ganancia for v in ventas_cliente), Decimal("0.00")))
+        clientes.append(
+            ClienteHistorialDia(
+                id_cliente=id_cliente,
+                nombre_cliente=nombres[id_cliente],
+                ventas=ventas_cliente,
+                total_cobrado=total_cobrado,
+                total_ganancia=total_ganancia,
+            )
+        )
+
+    return sorted(clientes, key=lambda c: c.nombre_cliente.lower())
+
+
+def obtener_detalle_venta(session: Session, id_venta: int) -> VentaHistorialConCliente:
+    venta_orm = _cargar_venta(session, id_venta)
+    return VentaHistorialConCliente(
+        id_cliente=venta_orm.id_cliente,
+        nombre_cliente=venta_orm.cliente.nombre,
+        venta=_a_historial(venta_orm),
+    )
 
 
 def listar_historial_ventas_dia(
     session: Session,
     fecha: date,
 ) -> list[VentaHistorialDetalle]:
+    """Lista plana de ventas del día (compatibilidad)."""
     ventas = _ventas_en_rango(session, fecha, fecha)
     return [_a_historial(v) for v in ventas]
+
+
+def listar_historial_dia_por_cliente(
+    session: Session,
+    fecha: date,
+) -> HistorialDiaPorCliente:
+    """
+    Historial del día agrupado por cliente: nombre del cliente y,
+    debajo, el detalle de cada venta asociada.
+    """
+    ventas_orm = _ventas_en_rango(session, fecha, fecha)
+    ventas = [_a_historial(v) for v in ventas_orm]
+    nombres = {v.id_cliente: v.cliente.nombre for v in ventas_orm}
+    clientes = _agrupar_ventas_por_cliente(ventas, nombres)
+    return HistorialDiaPorCliente(fecha=fecha, clientes=clientes)
 
 
 def obtener_resumen_dia(session: Session, fecha: date) -> ResumenDia:
@@ -146,7 +195,6 @@ def obtener_resumen_mes_calendario(
     ventas = _ventas_en_rango(session, desde, hasta)
 
     ganancia_por_dia: dict[date, Decimal] = {}
-    cobrado_por_dia: dict[date, Decimal] = {}
     ventas_por_dia: dict[date, int] = {}
 
     total_cobrado = Decimal("0.00")
@@ -158,7 +206,6 @@ def obtener_resumen_mes_calendario(
         dia = v.fecha.date()
         _, _, cobrado, ganancia = _metricas_venta(v)
         ganancia_por_dia[dia] = ganancia_por_dia.get(dia, Decimal("0.00")) + ganancia
-        cobrado_por_dia[dia] = cobrado_por_dia.get(dia, Decimal("0.00")) + cobrado
         ventas_por_dia[dia] = ventas_por_dia.get(dia, 0) + 1
         total_cobrado += cobrado
         total_ganancia += ganancia

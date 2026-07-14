@@ -1,4 +1,5 @@
 from namis.services.balance import (
+    listar_historial_dia_por_cliente,
     listar_historial_ventas_dia,
     obtener_detalle_venta,
     obtener_resumen_dia,
@@ -41,6 +42,7 @@ __all__ = [
     "crear_producto",
     "crear_promocion",
     "eliminar_linea_receta",
+    "listar_historial_dia_por_cliente",
     "listar_historial_ventas_dia",
     "listar_insumos_actuales",
     "listar_promociones",

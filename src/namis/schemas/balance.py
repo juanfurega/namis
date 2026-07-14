@@ -18,8 +18,8 @@ class LineaVentaHistorial:
 @dataclass(frozen=True, slots=True)
 class VentaHistorialDetalle:
     id_venta: int
+    id_cliente: int
     fecha: datetime
-    nombre_cliente: str
     medio_pago: str | None
     red_social: str | None
     nombre_promocion: str | None
@@ -31,6 +31,32 @@ class VentaHistorialDetalle:
     costo_productos: Decimal
     ganancia: Decimal
     lineas: list[LineaVentaHistorial]
+
+
+@dataclass(frozen=True, slots=True)
+class ClienteHistorialDia:
+    """Ventas de un cliente en un día (nombre primero, detalles debajo)."""
+
+    id_cliente: int
+    nombre_cliente: str
+    ventas: list[VentaHistorialDetalle]
+    total_cobrado: Decimal
+    total_ganancia: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class HistorialDiaPorCliente:
+    fecha: date
+    clientes: list[ClienteHistorialDia]
+
+
+@dataclass(frozen=True, slots=True)
+class VentaHistorialConCliente:
+    """Detalle de una venta con datos del cliente asociado."""
+
+    id_cliente: int
+    nombre_cliente: str
+    venta: VentaHistorialDetalle
 
 
 @dataclass(frozen=True, slots=True)
