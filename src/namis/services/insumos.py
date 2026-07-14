@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 from namis.exceptions import (
@@ -20,6 +20,7 @@ from namis.services.insumo_precios import obtener_precio_vigente_insumo
 
 __all__ = [
     "crear_insumo",
+    "eliminar_insumo",
     "listar_insumos_actuales",
     "obtener_precio_vigente_insumo",
     "registrar_compra_insumo",
@@ -40,6 +41,23 @@ def crear_insumo(session: Session, nombre: str, unidad_medida: str) -> Insumo:
     session.add(insumo)
     session.flush()
     return insumo
+
+
+def eliminar_insumo(session: Session, id_insumo: int) -> None:
+    """Elimina un insumo y su historial de precios."""
+    if session.get(Insumo, id_insumo) is None:
+        raise InsumoNoEncontradoError(id_insumo)
+    
+    # Primero eliminar el historial de precios
+    session.execute(
+        delete(InsumoHistorialPrecio).where(InsumoHistorialPrecio.id_insumo == id_insumo)
+    )
+    
+    # Luego eliminar el insumo
+    session.execute(
+        delete(Insumo).where(Insumo.id_insumo == id_insumo)
+    )
+    session.flush()
 
 
 def registrar_compra_insumo(

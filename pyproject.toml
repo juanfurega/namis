@@ -12,6 +12,7 @@ dependencies = [
     "pymysql>=1.1,<2",
     "cryptography>=41,<47",
     "python-dotenv>=1.0,<2",
+    "streamlit>=1.28,<2",
 ]
 
 [tool.setuptools.packages.find]
