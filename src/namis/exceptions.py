@@ -52,6 +52,12 @@ class VentaInvalidaError(NamisError):
         super().__init__(mensaje)
 
 
+class VentaNoEncontradaError(NamisError):
+    def __init__(self, id_venta: int) -> None:
+        super().__init__(f"No existe venta con id {id_venta}.")
+        self.id_venta = id_venta
+
+
 class PromocionInvalidaError(NamisError):
     def __init__(self, mensaje: str) -> None:
         super().__init__(mensaje)

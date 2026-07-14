@@ -1,3 +1,9 @@
+from namis.services.balance import (
+    listar_historial_ventas_dia,
+    obtener_detalle_venta,
+    obtener_resumen_dia,
+    obtener_resumen_mes_calendario,
+)
 from namis.services.insumo_precios import obtener_precio_vigente_insumo
 from namis.services.insumos import (
     crear_insumo,
@@ -35,12 +41,16 @@ __all__ = [
     "crear_producto",
     "crear_promocion",
     "eliminar_linea_receta",
+    "listar_historial_ventas_dia",
     "listar_insumos_actuales",
     "listar_promociones",
+    "obtener_detalle_venta",
     "obtener_precio_vigente_insumo",
     "obtener_producto",
     "obtener_promocion",
     "obtener_receta",
+    "obtener_resumen_dia",
+    "obtener_resumen_mes_calendario",
     "registrar_compra_insumo",
     "registrar_venta",
 ]
