@@ -15,6 +15,7 @@ from namis.services.insumos import (
 from namis.services.productos import (
     actualizar_precios_producto,
     crear_producto,
+    eliminar_producto,
     obtener_producto,
 )
 from namis.services.promociones import (
@@ -26,6 +27,7 @@ from namis.services.recetas import (
     agregar_insumo_a_receta,
     agregar_producto_a_receta,
     eliminar_linea_receta,
+    eliminar_receta_completa,
     obtener_receta,
 )
 from namis.services.ventas import calcular_presupuesto_venta, registrar_venta
@@ -44,6 +46,8 @@ __all__ = [
     "crear_promocion",
     "eliminar_insumo",
     "eliminar_linea_receta",
+    "eliminar_producto",
+    "eliminar_receta_completa",
     "listar_historial_dia_por_cliente",
     "listar_historial_ventas_dia",
     "listar_insumos_actuales",

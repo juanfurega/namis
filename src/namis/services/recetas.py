@@ -123,6 +123,21 @@ def eliminar_linea_receta(session: Session, id_receta: int) -> list[int]:
     return actualizar_costos_en_cascada(session, [id_producto])
 
 
+def eliminar_receta_completa(session: Session, id_producto: int) -> list[int]:
+    """Elimina todas las líneas de receta de un producto."""
+    producto = _asegurar_producto(session, id_producto)
+    
+    lineas = session.scalars(
+        select(Receta).where(Receta.id_producto == id_producto)
+    ).all()
+    
+    for linea in lineas:
+        session.delete(linea)
+    
+    session.flush()
+    return actualizar_costos_en_cascada(session, [id_producto])
+
+
 def obtener_receta(session: Session, id_producto: int) -> RecetaDetalle:
     producto = _asegurar_producto(session, id_producto)
     lineas_orm = session.scalars(

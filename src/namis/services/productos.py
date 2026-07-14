@@ -1,9 +1,13 @@
 from decimal import Decimal
 
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from namis.exceptions import ProductoNoEncontradoError
 from namis.models.producto import Producto
+from namis.models.receta import Receta
+from namis.models.detalle_venta import DetalleVenta
+from namis.models.promocion_requisito import PromocionRequisito
 
 
 def crear_producto(
@@ -53,3 +57,30 @@ def actualizar_precios_producto(
     producto.precio_actual = precio_actual
     session.flush()
     return producto
+
+
+def eliminar_producto(session: Session, id_producto: int) -> None:
+    """Elimina un producto, su receta completa y referencias en ventas y promociones."""
+    if session.get(Producto, id_producto) is None:
+        raise ProductoNoEncontradoError(id_producto)
+    
+    # Primero eliminar requisitos de promoción asociados
+    session.execute(
+        delete(PromocionRequisito).where(PromocionRequisito.id_producto == id_producto)
+    )
+    
+    # Luego eliminar detalles de venta asociados
+    session.execute(
+        delete(DetalleVenta).where(DetalleVenta.id_producto == id_producto)
+    )
+    
+    # Luego eliminar la receta del producto
+    session.execute(
+        delete(Receta).where(Receta.id_producto == id_producto)
+    )
+    
+    # Finalmente eliminar el producto
+    session.execute(
+        delete(Producto).where(Producto.id_producto == id_producto)
+    )
+    session.flush()
