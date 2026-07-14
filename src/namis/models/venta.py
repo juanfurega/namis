@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import text
+from sqlalchemy.sql import func
 
 from namis.models.base import Base
 
@@ -21,8 +21,9 @@ class Venta(Base):
 
     id_venta: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     id_cliente: Mapped[int] = mapped_column(Integer, ForeignKey("clientes.id_cliente"), nullable=False)
-    fecha: Mapped[date | None] = mapped_column(Date, server_default=text("CURRENT_DATE"))
+    fecha: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.now())
     medio_pago: Mapped[str | None] = mapped_column(String(50))
+    red_social: Mapped[str | None] = mapped_column(String(50))
     requiere_envio: Mapped[bool | None] = mapped_column(Boolean, default=False)
     costo_envio: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     id_promocion: Mapped[int | None] = mapped_column(
@@ -30,7 +31,11 @@ class Venta(Base):
         ForeignKey("promociones.id_promocion"),
         nullable=True,
     )
-    es_precio_mayorista: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    monto_descontado: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+    )
     total_cobrado: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     observaciones: Mapped[str | None] = mapped_column(Text)
 

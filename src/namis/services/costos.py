@@ -3,14 +3,18 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from namis.exceptions import InsumoSinPrecioVigenteError, ProductoNoEncontradoError
+from namis.exceptions import (
+    InsumoSinPrecioVigenteError,
+    ProductoNoEncontradoError,
+    RecetaCiclicaError,
+)
 from namis.models.producto import Producto
 from namis.models.receta import Receta
 from namis.services.insumo_precios import obtener_precio_vigente_insumo
 from namis.utils.money import money
 
 
-def costo_linea_receta(
+def costo_linea_insumo(
     cantidad_necesaria: Decimal,
     cantidad_paquete: Decimal,
     precio_paquete: Decimal,
@@ -20,19 +24,48 @@ def costo_linea_receta(
     return money((cantidad_necesaria / cantidad_paquete) * precio_paquete)
 
 
-def calcular_costo_producto(session: Session, id_producto: int) -> Decimal:
-    recetas = session.scalars(
+# Compatibilidad con el nombre anterior usado en insumos
+costo_linea_receta = costo_linea_insumo
+
+
+def calcular_costo_producto(
+    session: Session,
+    id_producto: int,
+    _stack: frozenset[int] | None = None,
+) -> Decimal:
+    if session.get(Producto, id_producto) is None:
+        raise ProductoNoEncontradoError(id_producto)
+
+    stack = _stack or frozenset()
+    if id_producto in stack:
+        raise RecetaCiclicaError(id_producto, id_producto)
+
+    stack = stack | {id_producto}
+    lineas = session.scalars(
         select(Receta).where(Receta.id_producto == id_producto)
     ).all()
 
     total = Decimal("0.00")
-    for receta in recetas:
-        vigente = obtener_precio_vigente_insumo(session, receta.id_insumo)
-        total += costo_linea_receta(
-            receta.cantidad_necesaria,
-            vigente.cantidad_paquete,
-            vigente.precio_paquete,
-        )
+    for linea in lineas:
+        if linea.id_insumo is not None:
+            vigente = obtener_precio_vigente_insumo(session, linea.id_insumo)
+            total += costo_linea_insumo(
+                linea.cantidad_necesaria,
+                vigente.cantidad_paquete,
+                vigente.precio_paquete,
+            )
+        elif linea.id_producto_componente is not None:
+            if linea.id_producto_componente in stack:
+                raise RecetaCiclicaError(id_producto, linea.id_producto_componente)
+            costo_comp = calcular_costo_producto(
+                session,
+                linea.id_producto_componente,
+                stack,
+            )
+            total += money(linea.cantidad_necesaria * costo_comp)
+        else:
+            raise ValueError(f"Línea de receta {linea.id_receta} sin componente.")
+
     return money(total)
 
 
@@ -46,22 +79,53 @@ def actualizar_costo_producto(session: Session, id_producto: int) -> Decimal:
     return costo
 
 
+def _productos_que_usan_como_componente(session: Session, id_producto: int) -> list[int]:
+    return list(
+        session.scalars(
+            select(Receta.id_producto)
+            .where(Receta.id_producto_componente == id_producto)
+            .distinct()
+        ).all()
+    )
+
+
+def actualizar_costos_en_cascada(
+    session: Session,
+    ids_productos: list[int],
+) -> list[int]:
+    """Recalcula productos y luego todos los que los usan como sub-receta."""
+    cola = list(ids_productos)
+    vistos: set[int] = set()
+    actualizados: list[int] = []
+
+    while cola:
+        id_producto = cola.pop(0)
+        if id_producto in vistos:
+            continue
+        vistos.add(id_producto)
+
+        try:
+            actualizar_costo_producto(session, id_producto)
+        except (InsumoSinPrecioVigenteError, RecetaCiclicaError):
+            continue
+
+        actualizados.append(id_producto)
+        for padre in _productos_que_usan_como_componente(session, id_producto):
+            if padre not in vistos:
+                cola.append(padre)
+
+    return actualizados
+
+
 def actualizar_costos_productos_afectados_por_insumo(
     session: Session,
     id_insumo: int,
 ) -> list[int]:
-    ids_productos = session.scalars(
-        select(Receta.id_producto)
-        .where(Receta.id_insumo == id_insumo)
-        .distinct()
-    ).all()
-
-    actualizados: list[int] = []
-    for id_producto in ids_productos:
-        try:
-            actualizar_costo_producto(session, id_producto)
-        except InsumoSinPrecioVigenteError:
-            continue
-        actualizados.append(id_producto)
-
-    return actualizados
+    ids_directos = list(
+        session.scalars(
+            select(Receta.id_producto)
+            .where(Receta.id_insumo == id_insumo)
+            .distinct()
+        ).all()
+    )
+    return actualizar_costos_en_cascada(session, ids_directos)

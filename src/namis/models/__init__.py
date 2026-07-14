@@ -7,6 +7,7 @@ from namis.models.insumo import Insumo
 from namis.models.insumo_historial import InsumoHistorialPrecio
 from namis.models.producto import Producto
 from namis.models.promocion import Promocion
+from namis.models.promocion_requisito import PromocionRequisito
 from namis.models.receta import Receta
 from namis.models.venta import Venta
 
@@ -18,6 +19,7 @@ __all__ = [
     "InsumoHistorialPrecio",
     "Producto",
     "Promocion",
+    "PromocionRequisito",
     "Receta",
     "Venta",
 ]

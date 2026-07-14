@@ -4,10 +4,43 @@ from namis.services.insumos import (
     listar_insumos_actuales,
     registrar_compra_insumo,
 )
+from namis.services.productos import (
+    actualizar_precios_producto,
+    crear_producto,
+    obtener_producto,
+)
+from namis.services.promociones import (
+    crear_promocion,
+    listar_promociones,
+    obtener_promocion,
+)
+from namis.services.recetas import (
+    agregar_insumo_a_receta,
+    agregar_producto_a_receta,
+    eliminar_linea_receta,
+    obtener_receta,
+)
+from namis.services.ventas import calcular_presupuesto_venta, registrar_venta
+from namis.schemas.promociones import RequisitoPromocionInput
+from namis.schemas.ventas import ItemVentaInput
 
 __all__ = [
+    "ItemVentaInput",
+    "RequisitoPromocionInput",
+    "actualizar_precios_producto",
+    "agregar_insumo_a_receta",
+    "agregar_producto_a_receta",
+    "calcular_presupuesto_venta",
     "crear_insumo",
+    "crear_producto",
+    "crear_promocion",
+    "eliminar_linea_receta",
     "listar_insumos_actuales",
+    "listar_promociones",
     "obtener_precio_vigente_insumo",
+    "obtener_producto",
+    "obtener_promocion",
+    "obtener_receta",
     "registrar_compra_insumo",
+    "registrar_venta",
 ]

@@ -10,7 +10,7 @@ from namis.models.base import Base
 
 if TYPE_CHECKING:
     from namis.models.detalle_venta import DetalleVenta
-    from namis.models.promocion import Promocion
+    from namis.models.promocion_requisito import PromocionRequisito
     from namis.models.receta import Receta
 
 
@@ -22,14 +22,18 @@ class Producto(Base):
     tamano_g: Mapped[int | None] = mapped_column(Integer)
     es_endulzado: Mapped[bool | None] = mapped_column(Boolean)
     precio_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    precio_mayorista: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     costo_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
     detalles_venta: Mapped[list[DetalleVenta]] = relationship(back_populates="producto")
     recetas: Mapped[list[Receta]] = relationship(
         back_populates="producto",
         cascade="all, delete-orphan",
+        foreign_keys="Receta.id_producto",
     )
-    promociones_como_requisito: Mapped[list[Promocion]] = relationship(
-        back_populates="producto_requerido",
+    usado_en_recetas: Mapped[list[Receta]] = relationship(
+        back_populates="producto_componente",
+        foreign_keys="Receta.id_producto_componente",
+    )
+    promociones_como_requisito: Mapped[list[PromocionRequisito]] = relationship(
+        back_populates="producto",
     )

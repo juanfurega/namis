@@ -9,20 +9,26 @@ CREATE TABLE productos ( -- PRODUCTO QUE SE VENDE
     nombre_producto VARCHAR(100) NOT NULL, 
     tamano_g INT, -- 350, 500 o 750
     es_endulzado BOOLEAN, -- 1 para Sí, 0 para Natural
-    precio_actual DECIMAL(10, 2) NOT NULL, -- precio minorista (venta habitual)
-    precio_mayorista DECIMAL(10, 2) NULL, -- NULL si el producto no se vende por mayor
+    precio_actual DECIMAL(10, 2) NOT NULL, -- precio de venta
     costo_actual DECIMAL(10, 2) NOT NULL -- Se debe actualizar cada vez que cambia el precio del insumo 
     -- otra opción es removerlo y que se calcule el costo actual de la receta
 );
 
 CREATE TABLE promociones (
     id_promocion INT AUTO_INCREMENT PRIMARY KEY,
-    nombre_promocion VARCHAR(50) NOT NULL, -- ej: 'Descuento 10%', 'Promo 2x1'
-    id_producto_requerido INT NULL, -- ¿Qué producto activa la promo?
-    cantidad_requerida INT NOT NULL, -- ¿Cuántos de ese producto hay que llevar?
-    descuento_monto DECIMAL(10, 2) DEFAULT 0.00,
-    descuento_porcentaje DECIMAL(5, 2) DEFAULT 0.00,
+    nombre_promocion VARCHAR(50) NOT NULL,
+    descuento_porcentaje DECIMAL(5, 2) NOT NULL, -- ej: 20.00 = 20%
     activa BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE promocion_requisitos (
+    id_requisito INT AUTO_INCREMENT PRIMARY KEY,
+    id_promocion INT NOT NULL,
+    id_producto INT NOT NULL,
+    cantidad_requerida INT NOT NULL, -- mínimo de unidades de ese producto en la venta
+    FOREIGN KEY (id_promocion) REFERENCES promociones(id_promocion) ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE RESTRICT,
+    UNIQUE KEY uq_promo_producto (id_promocion, id_producto)
 );
 
 CREATE TABLE ventas (
@@ -30,11 +36,11 @@ CREATE TABLE ventas (
     id_cliente INT NOT NULL,
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
     medio_pago VARCHAR(50), -- 'Transferencia', 'Efectivo', etc.
-    red_social VARCHAR(50), -- 'Facebook', 'Instagram', etc.
+    red_social VARCHAR(50), -- Medio de comunicación informativo: 'wsp', 'ig', 'msn'
     requiere_envio BOOLEAN DEFAULT FALSE,
     costo_envio DECIMAL(10, 2) DEFAULT 0.00,
-    id_promocion INT NULL, -- Puede ser NULL si no hay promo aplicada
-    es_precio_mayorista BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE si la venta se armó con lista mayorista
+    id_promocion INT NULL, -- Promo aplicada automáticamente; NULL si ninguna califica
+    monto_descontado DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     total_cobrado DECIMAL(10, 2) NOT NULL,
     observaciones TEXT,
     FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
@@ -69,9 +75,15 @@ CREATE TABLE insumos_historial_precios ( -- HISTORIAL DE PRECIOS DE LA MATERIA P
 
 CREATE TABLE recetas (
     id_receta INT AUTO_INCREMENT PRIMARY KEY,
-    id_producto INT NOT NULL, -- PUEDE INCLUIR PRODUCTOS YA CREADOS (YOGURT POR EJEMPLO)
-    id_insumo INT NOT NULL,
-    cantidad_necesaria DECIMAL(10, 2) NOT NULL, -- Cuánto usas de la unidad_medida para un solo pote
+    id_producto INT NOT NULL, -- Producto dueño de la receta (ej: postre)
+    id_insumo INT NULL, -- Línea de materia prima (XOR con id_producto_componente)
+    id_producto_componente INT NULL, -- Línea de sub-receta (ej: yogurt dentro de postre)
+    cantidad_necesaria DECIMAL(10, 2) NOT NULL, -- En unidad del insumo, o unidades del producto componente
     FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
-    FOREIGN KEY (id_insumo) REFERENCES insumos(id_insumo) ON DELETE RESTRICT
+    FOREIGN KEY (id_insumo) REFERENCES insumos(id_insumo) ON DELETE RESTRICT,
+    FOREIGN KEY (id_producto_componente) REFERENCES productos(id_producto) ON DELETE RESTRICT,
+    CHECK (
+        (id_insumo IS NOT NULL AND id_producto_componente IS NULL)
+        OR (id_insumo IS NULL AND id_producto_componente IS NOT NULL)
+    )
 );
