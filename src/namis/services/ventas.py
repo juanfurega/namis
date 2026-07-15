@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
 from namis.exceptions import ProductoNoEncontradoError, VentaInvalidaError
@@ -180,4 +180,22 @@ def actualizar_estado_deudor(session: Session, id_venta: int, es_deudor: bool) -
     if venta is None:
         raise ValueError(f"No existe venta con id {id_venta}")
     venta.es_deudor = es_deudor
+    session.flush()
+
+
+def eliminar_venta(session: Session, id_venta: int) -> None:
+    """Elimina una venta y sus detalles."""
+    venta = session.get(Venta, id_venta)
+    if venta is None:
+        raise ValueError(f"No existe venta con id {id_venta}")
+    
+    # Primero eliminar los detalles de la venta
+    session.execute(
+        delete(DetalleVenta).where(DetalleVenta.id_venta == id_venta)
+    )
+    
+    # Luego eliminar la venta
+    session.execute(
+        delete(Venta).where(Venta.id_venta == id_venta)
+    )
     session.flush()

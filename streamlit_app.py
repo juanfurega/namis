@@ -569,6 +569,13 @@ with tab2:
 with tab3:
     st.header("💰 Ventas")
     
+    # Carrito de productos
+    if "carrito_venta" not in st.session_state:
+        st.session_state.carrito_venta = []
+    
+    # Formulario para registrar venta
+    st.subheader("📝 Registrar Nueva Venta")
+    
     with session_scope() as session:
         from namis.services import (
             actualizar_estado_deudor,
@@ -582,13 +589,6 @@ with tab3:
         from decimal import Decimal
         from datetime import datetime
         
-        # Formulario para registrar venta
-        st.subheader("📝 Registrar Nueva Venta")
-        
-        # Carrito de productos (fuera del formulario para permitir botones de eliminación)
-        if "carrito_venta" not in st.session_state:
-            st.session_state.carrito_venta = []
-        
         # Obtener productos con receta
         productos_con_receta = session.scalars(
             select(Producto)
@@ -596,46 +596,6 @@ with tab3:
             .where(Receta.id_producto_componente.is_(None))
             .order_by(Producto.nombre_producto)
         ).all()
-        
-        if productos_con_receta:
-            st.subheader("📦 Productos")
-            
-            # Agregar productos al carrito
-            col_prod, col_cant, col_acc = st.columns([3, 1, 1])
-            
-            with col_prod:
-                producto_seleccionado = st.selectbox(
-                    "Seleccionar producto",
-                    options=[""] + [f"{p.id_producto} - {p.nombre_producto}" for p in productos_con_receta],
-                    key="producto_seleccionado"
-                )
-            
-            with col_cant:
-                cantidad = st.number_input("Cantidad", min_value=1, value=1, key="cantidad_producto")
-            
-            with col_acc:
-                if st.button("Agregar", use_container_width=True):
-                    if producto_seleccionado:
-                        id_producto = int(producto_seleccionado.split(" - ")[0])
-                        st.session_state.carrito_venta.append(
-                            {"id_producto": id_producto, "cantidad": cantidad}
-                        )
-                        st.rerun()
-            
-            # Mostrar carrito actual
-            if st.session_state.carrito_venta:
-                st.write("🛒 Productos en el carrito:")
-                for i, item in enumerate(st.session_state.carrito_venta):
-                    producto = session.get(Producto, item["id_producto"])
-                    col_item, col_elim = st.columns([4, 1])
-                    with col_item:
-                        st.write(f"- {producto.nombre_producto} x {item['cantidad']}")
-                    with col_elim:
-                        if st.button("❌", key=f"eliminar_carrito_{i}"):
-                            st.session_state.carrito_venta.pop(i)
-                            st.rerun()
-            else:
-                st.info("No hay productos en el carrito")
         
         with st.form("form_venta"):
             col1, col2 = st.columns(2)
@@ -661,6 +621,41 @@ with tab3:
                     format="%.2f",
                     value=0.0
                 )
+            
+            if productos_con_receta:
+                st.subheader("📦 Productos")
+                
+                # Agregar productos al carrito
+                col_prod, col_cant = st.columns([3, 1])
+                
+                with col_prod:
+                    producto_seleccionado = st.selectbox(
+                        "Seleccionar producto",
+                        options=[""] + [f"{p.id_producto} - {p.nombre_producto}" for p in productos_con_receta],
+                        key="producto_seleccionado"
+                    )
+                
+                with col_cant:
+                    cantidad = st.number_input("Cantidad", min_value=1, value=1, key="cantidad_producto")
+                
+                agregar = st.form_submit_button("Agregar al carrito", use_container_width=True)
+                if agregar and producto_seleccionado:
+                    id_producto = int(producto_seleccionado.split(" - ")[0])
+                    st.session_state.carrito_venta.append(
+                        {"id_producto": id_producto, "cantidad": cantidad}
+                    )
+                    st.rerun()
+                
+                # Mostrar carrito actual
+                if st.session_state.carrito_venta:
+                    st.write("🛒 Productos en el carrito:")
+                    for i, item in enumerate(st.session_state.carrito_venta):
+                        producto = session.get(Producto, item["id_producto"])
+                        st.write(f"- {producto.nombre_producto} x {item['cantidad']}")
+                else:
+                    st.info("No hay productos en el carrito")
+            else:
+                st.warning("No hay productos con receta disponibles. Primero cree productos con recetas.")
             
             observaciones = st.text_area("Observaciones (opcional)", key="observaciones_venta")
             
@@ -693,20 +688,25 @@ with tab3:
                         
                         st.success(f"✅ Venta registrada exitosamente. ID: {venta_registrada.id_venta}")
                         st.session_state.carrito_venta = []
-                        st.rerun()
                         
                     except Exception as e:
                         st.error(f"Error al registrar venta: {e}")
                         import traceback
                         st.error(traceback.format_exc())
-        
-        if not productos_con_receta:
-            st.warning("No hay productos con receta disponibles. Primero cree productos con recetas.")
-        
-        st.divider()
-        
-        # Lista de últimas 20 ventas
-        st.subheader("📋 Últimas 20 Ventas")
+    
+    # Botón para limpiar carrito (fuera del formulario)
+    if st.session_state.carrito_venta:
+        if st.button("🗑️ Limpiar carrito"):
+            st.session_state.carrito_venta = []
+            st.rerun()
+    
+    st.divider()
+    
+    # Lista de últimas 20 ventas (usando una nueva sesión)
+    st.subheader("📋 Últimas 20 Ventas")
+    
+    with session_scope() as session:
+        from namis.services import listar_ultimas_ventas, eliminar_venta
         
         try:
             ventas = listar_ultimas_ventas(session, limite=20)
@@ -725,9 +725,9 @@ with tab3:
                         dia_semana = "N/A"
                         fecha_formateada = "N/A"
                     
-                    # Obtener productos de la venta
-                    productos_str = ", ".join(
-                        [f"{d.producto.nombre_producto} x {d.cantidad}" for d in venta.detalles]
+                    # Obtener productos de la venta (formato lista vertical)
+                    productos_str = "\n".join(
+                        [f"• {d.producto.nombre_producto} x {d.cantidad}" for d in venta.detalles]
                     )
                     
                     promocion_str = f"${venta.monto_descontado}" if venta.monto_descontado > 0 else "No"
@@ -785,6 +785,33 @@ with tab3:
                                     st.error(f"Error al actualizar estado: {e}")
                                     import traceback
                                     st.error(traceback.format_exc())
+                
+                # Sección para eliminar venta
+                st.subheader("🗑️ Eliminar Venta")
+                venta_eliminar = st.selectbox(
+                    "Seleccionar venta para eliminar",
+                    options=[""] + [f"{v.id_venta} - {v.cliente.nombre} - {v.fecha.strftime('%d/%m/%Y') if v.fecha else 'N/A'} - ${v.total_cobrado}" for v in ventas],
+                    key="venta_eliminar"
+                )
+                
+                if venta_eliminar:
+                    id_venta_eliminar = int(venta_eliminar.split(" - ")[0])
+                    venta_eliminar_obj = next((v for v in ventas if v.id_venta == id_venta_eliminar), None)
+                    
+                    if venta_eliminar_obj:
+                        st.warning(f"⚠️ Estás a punto de eliminar la venta {id_venta_eliminar} de {venta_eliminar_obj.cliente.nombre} por ${venta_eliminar_obj.total_cobrado}")
+                        
+                        if st.button("Confirmar Eliminación", key=f"btn_eliminar_{id_venta_eliminar}", type="primary"):
+                            try:
+                                eliminar_venta(session, id_venta_eliminar)
+                                session.commit()
+                                st.success(f"✅ Venta {id_venta_eliminar} eliminada exitosamente")
+                                st.rerun()
+                            except Exception as e:
+                                session.rollback()
+                                st.error(f"Error al eliminar venta: {e}")
+                                import traceback
+                                st.error(traceback.format_exc())
             else:
                 st.info("No hay ventas registradas")
                 

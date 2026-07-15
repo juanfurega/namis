@@ -33,6 +33,7 @@ from namis.services.recetas import (
 from namis.services.ventas import (
     actualizar_estado_deudor,
     calcular_presupuesto_venta,
+    eliminar_venta,
     listar_ultimas_ventas,
     registrar_venta,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "eliminar_linea_receta",
     "eliminar_producto",
     "eliminar_receta_completa",
+    "eliminar_venta",
     "listar_historial_dia_por_cliente",
     "listar_historial_ventas_dia",
     "listar_insumos_actuales",

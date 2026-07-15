@@ -131,6 +131,8 @@ def _promocion_califica(promocion: Promocion, cantidades: dict[int, int]) -> boo
 
 def _sets_completos(promocion: Promocion, cantidades: dict[int, int]) -> int:
     """Cuántas veces se cumple el combo completo de la promoción en el carrito."""
+    if not promocion.requisitos:
+        return 0
     if not _promocion_califica(promocion, cantidades):
         return 0
     return min(
