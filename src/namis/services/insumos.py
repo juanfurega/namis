@@ -16,7 +16,7 @@ from namis.schemas.insumos import (
     PrecioVigenteInsumo,
     RegistroCompraInsumoResultado,
 )
-from namis.services.costos import actualizar_costos_productos_afectados_por_insumo
+from namis.services.costos import actualizar_costos_en_cascada, actualizar_costos_productos_afectados_por_insumo
 from namis.services.insumo_precios import obtener_precio_vigente_insumo
 
 __all__ = [
@@ -49,7 +49,12 @@ def eliminar_insumo(session: Session, id_insumo: int) -> None:
     if session.get(Insumo, id_insumo) is None:
         raise InsumoNoEncontradoError(id_insumo)
     
-    # Primero eliminar recetas que usan este insumo
+    # Primero obtener los productos que usan este insumo antes de eliminar
+    productos_afectados = session.scalars(
+        select(Receta.id_producto).where(Receta.id_insumo == id_insumo)
+    ).all()
+    
+    # Eliminar recetas que usan este insumo
     session.execute(
         delete(Receta).where(Receta.id_insumo == id_insumo)
     )
@@ -64,6 +69,10 @@ def eliminar_insumo(session: Session, id_insumo: int) -> None:
         delete(Insumo).where(Insumo.id_insumo == id_insumo)
     )
     session.flush()
+    
+    # Actualizar costos de los productos afectados
+    if productos_afectados:
+        actualizar_costos_en_cascada(session, productos_afectados)
 
 
 def registrar_compra_insumo(

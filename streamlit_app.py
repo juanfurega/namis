@@ -594,6 +594,7 @@ with tab3:
             select(Producto)
             .join(Receta, Receta.id_producto == Producto.id_producto)
             .where(Receta.id_producto_componente.is_(None))
+            .distinct()
             .order_by(Producto.nombre_producto)
         ).all()
         
@@ -725,8 +726,8 @@ with tab3:
                         dia_semana = "N/A"
                         fecha_formateada = "N/A"
                     
-                    # Obtener productos de la venta (formato lista vertical)
-                    productos_str = "\n".join(
+                    # Obtener productos de la venta (formato lista vertical con HTML)
+                    productos_str = "<br>".join(
                         [f"• {d.producto.nombre_producto} x {d.cantidad}" for d in venta.detalles]
                     )
                     
@@ -751,7 +752,47 @@ with tab3:
                         "Deudor": deudor_str,
                     })
                 
-                st.dataframe(datos_ventas, use_container_width=True)
+                # Crear tabla HTML con colores para modo claro
+                html_table = """
+                <style>
+                    .ventas-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 14px;
+                    }
+                    .ventas-table th {
+                        border: 1px solid #ddd;
+                        padding: 10px;
+                        text-align: left;
+                        background-color: #f0f0f0;
+                        color: #000;
+                        font-weight: bold;
+                    }
+                    .ventas-table td {
+                        border: 1px solid #ddd;
+                        padding: 8px;
+                        color: #333;
+                        vertical-align: top;
+                    }
+                    .ventas-table tr:hover {
+                        background-color: #f5f5f5;
+                    }
+                </style>
+                <table class='ventas-table'>
+                """
+                html_table += "<thead><tr>"
+                for col in datos_ventas[0].keys():
+                    html_table += f"<th>{col}</th>"
+                html_table += "</tr></thead><tbody>"
+                
+                for row in datos_ventas:
+                    html_table += "<tr>"
+                    for col, val in row.items():
+                        html_table += f"<td>{val}</td>"
+                    html_table += "</tr>"
+                
+                html_table += "</tbody></table>"
+                st.markdown(html_table, unsafe_allow_html=True)
                 
                 # Sección para marcar deudor
                 st.subheader("📝 Marcar/Desmarcar Deudor")
