@@ -30,13 +30,19 @@ from namis.services.recetas import (
     eliminar_receta_completa,
     obtener_receta,
 )
-from namis.services.ventas import calcular_presupuesto_venta, registrar_venta
+from namis.services.ventas import (
+    actualizar_estado_deudor,
+    calcular_presupuesto_venta,
+    listar_ultimas_ventas,
+    registrar_venta,
+)
 from namis.schemas.promociones import RequisitoPromocionInput
 from namis.schemas.ventas import ItemVentaInput
 
 __all__ = [
     "ItemVentaInput",
     "RequisitoPromocionInput",
+    "actualizar_estado_deudor",
     "actualizar_precios_producto",
     "agregar_insumo_a_receta",
     "agregar_producto_a_receta",
@@ -52,6 +58,7 @@ __all__ = [
     "listar_historial_ventas_dia",
     "listar_insumos_actuales",
     "listar_promociones",
+    "listar_ultimas_ventas",
     "obtener_detalle_venta",
     "obtener_precio_vigente_insumo",
     "obtener_producto",

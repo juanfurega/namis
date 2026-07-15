@@ -10,6 +10,7 @@ from namis.exceptions import (
 )
 from namis.models.insumo import Insumo
 from namis.models.insumo_historial import InsumoHistorialPrecio
+from namis.models.receta import Receta
 from namis.schemas.insumos import (
     InsumoConPrecioVigente,
     PrecioVigenteInsumo,
@@ -44,16 +45,21 @@ def crear_insumo(session: Session, nombre: str, unidad_medida: str) -> Insumo:
 
 
 def eliminar_insumo(session: Session, id_insumo: int) -> None:
-    """Elimina un insumo y su historial de precios."""
+    """Elimina un insumo, su historial de precios y referencias en recetas."""
     if session.get(Insumo, id_insumo) is None:
         raise InsumoNoEncontradoError(id_insumo)
     
-    # Primero eliminar el historial de precios
+    # Primero eliminar recetas que usan este insumo
+    session.execute(
+        delete(Receta).where(Receta.id_insumo == id_insumo)
+    )
+    
+    # Luego eliminar el historial de precios
     session.execute(
         delete(InsumoHistorialPrecio).where(InsumoHistorialPrecio.id_insumo == id_insumo)
     )
     
-    # Luego eliminar el insumo
+    # Finalmente eliminar el insumo
     session.execute(
         delete(Insumo).where(Insumo.id_insumo == id_insumo)
     )
@@ -79,10 +85,15 @@ def registrar_compra_insumo(
     session.add(historial)
     session.flush()
 
-    productos_actualizados = actualizar_costos_productos_afectados_por_insumo(
-        session,
-        id_insumo,
-    )
+    try:
+        productos_actualizados = actualizar_costos_productos_afectados_por_insumo(
+            session,
+            id_insumo,
+        )
+    except Exception:
+        # Si falla la actualización de costos, aún así registramos la compra
+        # El precio del insumo se actualiza, pero los productos pueden necesitar recálculo manual
+        productos_actualizados = []
 
     return RegistroCompraInsumoResultado(
         id_historial=historial.id_historial,

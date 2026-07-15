@@ -1,7 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from namis.exceptions import ProductoNoEncontradoError, VentaInvalidaError
 from namis.models.detalle_venta import DetalleVenta
@@ -83,6 +84,7 @@ def registrar_venta(
     costo_envio: Decimal = Decimal("0.00"),
     fecha: datetime | None = None,
     observaciones: str | None = None,
+    es_deudor: bool = False,
 ) -> VentaRegistrada:
     """
     Registra una venta con uno o más productos.
@@ -125,6 +127,7 @@ def registrar_venta(
         monto_descontado=presupuesto.monto_descontado,
         total_cobrado=presupuesto.total_cobrado,
         observaciones=observaciones,
+        es_deudor=es_deudor,
     )
     session.add(venta)
     session.flush()
@@ -154,3 +157,27 @@ def registrar_venta(
         promocion=presupuesto.promocion,
         lineas=presupuesto.lineas,
     )
+
+
+def listar_ultimas_ventas(session: Session, limite: int = 20) -> list[Venta]:
+    """Lista las últimas ventas ordenadas por fecha descendente."""
+    ventas = session.scalars(
+        select(Venta)
+        .options(
+            selectinload(Venta.cliente),
+            selectinload(Venta.promocion),
+            selectinload(Venta.detalles).selectinload(DetalleVenta.producto),
+        )
+        .order_by(Venta.fecha.desc(), Venta.id_venta.desc())
+        .limit(limite)
+    ).all()
+    return ventas
+
+
+def actualizar_estado_deudor(session: Session, id_venta: int, es_deudor: bool) -> None:
+    """Actualiza el estado de deudor de una venta."""
+    venta = session.get(Venta, id_venta)
+    if venta is None:
+        raise ValueError(f"No existe venta con id {id_venta}")
+    venta.es_deudor = es_deudor
+    session.flush()

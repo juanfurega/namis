@@ -132,9 +132,9 @@ with tab1:
                             import traceback
                             st.error(traceback.format_exc())
                     else:
-                        st.warning("Complete todos los campos correctamente")
+                        st.warning("Completa todos los campos correctamente")
             else:
-                st.warning("No hay insumos disponibles. Primero cree un insumo.")
+                st.warning("No hay insumos disponibles. Primero crea un insumo.")
         except Exception as e:
             st.error(f"Error al cargar insumos: {e}")
             import traceback
@@ -167,7 +167,7 @@ with tab1:
                         import traceback
                         st.error(traceback.format_exc())
                 else:
-                    st.warning("Complete ambos campos")
+                    st.warning("Completa ambos campos")
         except Exception as e:
             st.error(f"Error al crear insumo: {e}")
             import traceback
@@ -183,7 +183,7 @@ with tab1:
                 if insumos:
                     opciones_eliminar = {f"{i.id_insumo} - {i.nombre_insumo}": i.id_insumo for i in insumos}
                     insumo_a_eliminar = st.selectbox(
-                        "Seleccionar insumo a eliminar",
+                        "Selecciona el insumo a eliminar",
                         options=[""] + list(opciones_eliminar.keys()),
                         key="select_eliminar_insumo"
                     )
@@ -308,7 +308,7 @@ with tab2:
         st.divider()
         
         # Ver y editar receta
-        st.subheader("👨‍🍳 Ver y Editar Receta")
+        st.subheader("👩‍🍳 Ver y Editar Receta")
         
         try:
             productos = session.scalars(
@@ -568,13 +568,230 @@ with tab2:
 
 with tab3:
     st.header("💰 Ventas")
-    st.info("Módulo de ventas en desarrollo")
-    # TODO: Implementar gestión de ventas
-    # - Calcular presupuesto
-    # - Registrar venta
-    # - Ver historial de ventas
-    # - Selección de cliente
-    # - Aplicación automática de promociones
+    
+    with session_scope() as session:
+        from namis.services import (
+            actualizar_estado_deudor,
+            registrar_venta,
+            listar_ultimas_ventas,
+            ItemVentaInput,
+        )
+        from namis.models.producto import Producto
+        from namis.models.receta import Receta
+        from sqlalchemy import select
+        from decimal import Decimal
+        from datetime import datetime
+        
+        # Formulario para registrar venta
+        st.subheader("📝 Registrar Nueva Venta")
+        
+        # Carrito de productos (fuera del formulario para permitir botones de eliminación)
+        if "carrito_venta" not in st.session_state:
+            st.session_state.carrito_venta = []
+        
+        # Obtener productos con receta
+        productos_con_receta = session.scalars(
+            select(Producto)
+            .join(Receta, Receta.id_producto == Producto.id_producto)
+            .where(Receta.id_producto_componente.is_(None))
+            .order_by(Producto.nombre_producto)
+        ).all()
+        
+        if productos_con_receta:
+            st.subheader("📦 Productos")
+            
+            # Agregar productos al carrito
+            col_prod, col_cant, col_acc = st.columns([3, 1, 1])
+            
+            with col_prod:
+                producto_seleccionado = st.selectbox(
+                    "Seleccionar producto",
+                    options=[""] + [f"{p.id_producto} - {p.nombre_producto}" for p in productos_con_receta],
+                    key="producto_seleccionado"
+                )
+            
+            with col_cant:
+                cantidad = st.number_input("Cantidad", min_value=1, value=1, key="cantidad_producto")
+            
+            with col_acc:
+                if st.button("Agregar", use_container_width=True):
+                    if producto_seleccionado:
+                        id_producto = int(producto_seleccionado.split(" - ")[0])
+                        st.session_state.carrito_venta.append(
+                            {"id_producto": id_producto, "cantidad": cantidad}
+                        )
+                        st.rerun()
+            
+            # Mostrar carrito actual
+            if st.session_state.carrito_venta:
+                st.write("🛒 Productos en el carrito:")
+                for i, item in enumerate(st.session_state.carrito_venta):
+                    producto = session.get(Producto, item["id_producto"])
+                    col_item, col_elim = st.columns([4, 1])
+                    with col_item:
+                        st.write(f"- {producto.nombre_producto} x {item['cantidad']}")
+                    with col_elim:
+                        if st.button("❌", key=f"eliminar_carrito_{i}"):
+                            st.session_state.carrito_venta.pop(i)
+                            st.rerun()
+            else:
+                st.info("No hay productos en el carrito")
+        
+        with st.form("form_venta"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                nombre_cliente = st.text_input("Nombre del cliente *")
+                medio_comunicacion = st.selectbox(
+                    "Medio de comunicación",
+                    options=["", "Wsp", "Ig", "Msn"],
+                    key="medio_comunicacion"
+                )
+            
+            with col2:
+                medio_pago = st.selectbox(
+                    "Medio de pago",
+                    options=["", "Transferencia", "Efectivo"],
+                    key="medio_pago"
+                )
+                costo_envio = st.number_input(
+                    "Costo de envío",
+                    min_value=0.0,
+                    step=0.01,
+                    format="%.2f",
+                    value=0.0
+                )
+            
+            observaciones = st.text_area("Observaciones (opcional)", key="observaciones_venta")
+            
+            submitted = st.form_submit_button("Registrar Venta")
+            
+            if submitted:
+                if not nombre_cliente:
+                    st.error("El nombre del cliente es obligatorio")
+                elif not st.session_state.carrito_venta:
+                    st.error("Debe agregar al menos un producto al carrito")
+                else:
+                    try:
+                        items = [
+                            ItemVentaInput(
+                                id_producto=item["id_producto"],
+                                cantidad=item["cantidad"]
+                            )
+                            for item in st.session_state.carrito_venta
+                        ]
+                        
+                        venta_registrada = registrar_venta(
+                            session,
+                            nombre_cliente=nombre_cliente,
+                            items=items,
+                            medio_pago=medio_pago.lower() if medio_pago else None,
+                            red_social=medio_comunicacion.lower() if medio_comunicacion else None,
+                            costo_envio=Decimal(str(costo_envio)),
+                            observaciones=observaciones if observaciones else None,
+                        )
+                        
+                        st.success(f"✅ Venta registrada exitosamente. ID: {venta_registrada.id_venta}")
+                        st.session_state.carrito_venta = []
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"Error al registrar venta: {e}")
+                        import traceback
+                        st.error(traceback.format_exc())
+        
+        if not productos_con_receta:
+            st.warning("No hay productos con receta disponibles. Primero cree productos con recetas.")
+        
+        st.divider()
+        
+        # Lista de últimas 20 ventas
+        st.subheader("📋 Últimas 20 Ventas")
+        
+        try:
+            ventas = listar_ultimas_ventas(session, limite=20)
+            
+            if ventas:
+                # Preparar datos para mostrar
+                dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+                
+                datos_ventas = []
+                for venta in ventas:
+                    if venta.fecha:
+                        fecha = venta.fecha
+                        dia_semana = dias_semana[fecha.weekday()]
+                        fecha_formateada = fecha.strftime("%d/%m/%Y")
+                    else:
+                        dia_semana = "N/A"
+                        fecha_formateada = "N/A"
+                    
+                    # Obtener productos de la venta
+                    productos_str = ", ".join(
+                        [f"{d.producto.nombre_producto} x {d.cantidad}" for d in venta.detalles]
+                    )
+                    
+                    promocion_str = f"${venta.monto_descontado}" if venta.monto_descontado > 0 else "No"
+                    medio_pago_str = venta.medio_pago.capitalize() if venta.medio_pago else "N/A"
+                    medio_com_str = venta.red_social.upper() if venta.red_social else "N/A"
+                    envio_str = f"${venta.costo_envio}" if venta.costo_envio > 0 else "$0"
+                    deudor_str = "✅" if venta.es_deudor else ""
+                    
+                    datos_ventas.append({
+                        "ID": venta.id_venta,
+                        "Día": dia_semana,
+                        "Fecha": fecha_formateada,
+                        "Cliente": venta.cliente.nombre,
+                        "Medio Com.": medio_com_str,
+                        "Medio Pago": medio_pago_str,
+                        "Productos": productos_str,
+                        "Envío": envio_str,
+                        "Promoción": promocion_str,
+                        "Total": f"${venta.total_cobrado}",
+                        "Observaciones": venta.observaciones or "",
+                        "Deudor": deudor_str,
+                    })
+                
+                st.dataframe(datos_ventas, use_container_width=True)
+                
+                # Sección para marcar deudor
+                st.subheader("📝 Marcar/Desmarcar Deudor")
+                venta_seleccionada = st.selectbox(
+                    "Seleccionar venta",
+                    options=[""] + [f"{v.id_venta} - {v.cliente.nombre} - {v.fecha.strftime('%d/%m/%Y') if v.fecha else 'N/A'}" for v in ventas],
+                    key="venta_deudor"
+                )
+                
+                if venta_seleccionada:
+                    id_venta = int(venta_seleccionada.split(" - ")[0])
+                    venta_actual = next((v for v in ventas if v.id_venta == id_venta), None)
+                    
+                    if venta_actual:
+                        col_deudor, col_accion = st.columns([1, 1])
+                        with col_deudor:
+                            nuevo_estado_deudor = st.checkbox(
+                                "Marcar como Deudor",
+                                value=venta_actual.es_deudor,
+                                key=f"deudor_{id_venta}"
+                            )
+                        with col_accion:
+                            if st.button("Actualizar Estado", key=f"btn_deudor_{id_venta}"):
+                                try:
+                                    actualizar_estado_deudor(session, id_venta, nuevo_estado_deudor)
+                                    session.commit()
+                                    st.success(f"✅ Estado de deudor actualizado para venta {id_venta}")
+                                    st.rerun()
+                                except Exception as e:
+                                    session.rollback()
+                                    st.error(f"Error al actualizar estado: {e}")
+                                    import traceback
+                                    st.error(traceback.format_exc())
+            else:
+                st.info("No hay ventas registradas")
+                
+        except Exception as e:
+            st.error(f"Error al cargar ventas: {e}")
+            import traceback
+            st.error(traceback.format_exc())
 
 with tab4:
     st.header("🏷️ Promociones")

@@ -38,6 +38,7 @@ class Venta(Base):
     )
     total_cobrado: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     observaciones: Mapped[str | None] = mapped_column(Text)
+    es_deudor: Mapped[bool | None] = mapped_column(Boolean, default=False)
 
     cliente: Mapped[Cliente] = relationship(back_populates="ventas")
     promocion: Mapped[Promocion | None] = relationship(back_populates="ventas")
