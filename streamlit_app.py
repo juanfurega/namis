@@ -1,6 +1,11 @@
 """
 Interfaz Streamlit para Namis - Sistema de gestión de yogurtería
 """
+import sys
+import os
+
+# Le decimos a Python que también busque módulos adentro de la carpeta 'src'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 import streamlit as st
 from namis.database import session_scope
