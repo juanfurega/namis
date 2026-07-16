@@ -96,6 +96,21 @@ def listar_promociones(session: Session, *, solo_activas: bool = False) -> list[
     return [_a_detalle(p) for p in promociones]
 
 
+def eliminar_promocion(session: Session, id_promocion: int) -> None:
+    """Elimina una promoción y sus requisitos."""
+    promocion = session.get(Promocion, id_promocion)
+    if promocion is None:
+        raise PromocionNoEncontradaError(id_promocion)
+    
+    # Eliminar requisitos primero
+    for requisito in promocion.requisitos:
+        session.delete(requisito)
+    
+    # Eliminar promoción
+    session.delete(promocion)
+    session.flush()
+
+
 def _a_detalle(promocion: Promocion) -> PromocionDetalle:
     requisitos = [
         RequisitoPromocionDetalle(

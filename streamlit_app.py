@@ -863,12 +863,216 @@ with tab3:
 
 with tab4:
     st.header("🏷️ Promociones")
-    st.info("Módulo de promociones en desarrollo")
-    # TODO: Implementar gestión de promociones
-    # - Listar promociones
-    # - Crear nueva promoción
-    # - Editar requisitos
-    # - Activar/desactivar promociones
+    
+    with session_scope() as session:
+        from namis.services import crear_promocion, eliminar_promocion, listar_promociones, obtener_promocion
+        from namis.models.producto import Producto
+        from namis.models.receta import Receta
+        from namis.models.promocion import Promocion
+        from namis.models.promocion_requisito import PromocionRequisito
+        from namis.schemas.promociones import RequisitoPromocionInput
+        from sqlalchemy import select, delete
+        from decimal import Decimal
+        
+        # Obtener productos con receta para usar en promociones
+        productos_con_receta = session.scalars(
+            select(Producto)
+            .join(Receta, Receta.id_producto == Producto.id_producto)
+            .where(Receta.id_producto_componente.is_(None))
+            .distinct()
+            .order_by(Producto.nombre_producto)
+        ).all()
+        
+        if not productos_con_receta:
+            st.warning("No hay productos con receta disponibles para crear promociones.")
+        else:
+            # Sección para crear nueva promoción
+            st.subheader("📝 Crear Nueva Promoción")
+            
+            # Inicializar session state si no existe
+            if "promo_nombre" not in st.session_state:
+                st.session_state.promo_nombre = ""
+            if "promo_descuento" not in st.session_state:
+                st.session_state.promo_descuento = 10
+            if "promo_activa" not in st.session_state:
+                st.session_state.promo_activa = True
+            if "promo_productos" not in st.session_state:
+                st.session_state.promo_productos = {}
+            
+            # Campos fuera del formulario para evitar envío con Enter
+            nombre_promocion = st.text_input(
+                "Nombre de la promoción *", 
+                value=st.session_state.promo_nombre,
+                key="promo_nombre_input"
+            )
+            descuento_porcentaje = st.number_input(
+                "Porcentaje de descuento *",
+                min_value=1,
+                max_value=100,
+                step=1,
+                value=st.session_state.promo_descuento,
+                key="promo_descuento_input"
+            )
+            activa = st.checkbox("Promoción activa", value=st.session_state.promo_activa, key="promo_activa_input")
+            
+            # Actualizar session state
+            st.session_state.promo_nombre = nombre_promocion
+            st.session_state.promo_descuento = descuento_porcentaje
+            st.session_state.promo_activa = activa
+            
+            # Productos requeridos en un expander
+            with st.expander("Productos requeridos"):
+                st.write("Selecciona los productos y cantidades requeridas para aplicar la promoción:")
+                
+                # Crear selector de productos con cantidades
+                requisitos = []
+                for producto in productos_con_receta:
+                    col_prod, col_cant = st.columns([3, 1])
+                    with col_prod:
+                        incluir = st.checkbox(
+                            f"{producto.nombre_producto} (${producto.precio_actual})",
+                            value=st.session_state.promo_productos.get(producto.id_producto, {}).get("incluir", False),
+                            key=f"prod_incluir_{producto.id_producto}"
+                        )
+                    with col_cant:
+                        cantidad = st.number_input(
+                            "Cantidad",
+                            min_value=1,
+                            value=st.session_state.promo_productos.get(producto.id_producto, {}).get("cantidad", 1),
+                            key=f"prod_cantidad_{producto.id_producto}"
+                        )
+                    
+                    # Actualizar session state
+                    if incluir:
+                        st.session_state.promo_productos[producto.id_producto] = {
+                            "incluir": True,
+                            "cantidad": cantidad
+                        }
+                        requisitos.append(
+                            RequisitoPromocionInput(
+                                id_producto=producto.id_producto,
+                                cantidad_requerida=cantidad
+                            )
+                        )
+                    elif producto.id_producto in st.session_state.promo_productos:
+                        del st.session_state.promo_productos[producto.id_producto]
+            
+            # Vista previa del descuento en tiempo real (fuera del formulario)
+            if requisitos and descuento_porcentaje > 0:
+                st.divider()
+                st.write("### Vista previa del descuento")
+                
+                # Calcular subtotal de productos requeridos
+                subtotal = Decimal("0.00")
+                for req in requisitos:
+                    producto = session.get(Producto, req.id_producto)
+                    if producto:
+                        subtotal += producto.precio_actual * req.cantidad_requerida
+                
+                monto_descontado = subtotal * Decimal(str(descuento_porcentaje)) / Decimal("100")
+                total_con_descuento = subtotal - monto_descontado
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Subtotal", f"${subtotal:.2f}")
+                with col2:
+                    st.metric("Descuento", f"-${monto_descontado:.2f}", delta=f"-{descuento_porcentaje}%")
+                with col3:
+                    st.metric("Total con descuento", f"${total_con_descuento:.2f}")
+            
+            # Botón para crear promoción (fuera del formulario)
+            if st.button("Crear Promoción", key="btn_crear_promocion", type="primary"):
+                if not nombre_promocion:
+                    st.error("El nombre de la promoción es obligatorio.")
+                elif not requisitos:
+                    st.error("Debes seleccionar al menos un producto para la promoción.")
+                elif descuento_porcentaje <= 0:
+                    st.error("El porcentaje de descuento debe ser mayor a 0.")
+                else:
+                    try:
+                        crear_promocion(
+                            session,
+                            nombre_promocion,
+                            Decimal(str(descuento_porcentaje)),
+                            requisitos,
+                            activa=activa
+                        )
+                        session.commit()
+                        st.success(f"✅ Promoción '{nombre_promocion}' creada exitosamente.")
+                        # Limpiar session state
+                        st.session_state.promo_nombre = ""
+                        st.session_state.promo_descuento = 10
+                        st.session_state.promo_activa = True
+                        st.session_state.promo_productos = {}
+                        st.rerun()
+                    except Exception as e:
+                        session.rollback()
+                        st.error(f"Error al crear promoción: {e}")
+                        import traceback
+                        st.error(traceback.format_exc())
+        
+        st.divider()
+        
+        # Listar promociones existentes
+        st.subheader("📋 Promociones Existentes")
+        
+        try:
+            promociones = listar_promociones(session)
+            
+            if not promociones:
+                st.info("No hay promociones registradas.")
+            else:
+                for promo in promociones:
+                    with st.expander(f"🏷️ {promo.nombre_promocion} - {promo.descuento_porcentaje}% {'(Activa)' if promo.activa else '(Inactiva)'}"):
+                        col1, col2, col3 = st.columns([2, 1, 1])
+                        
+                        with col1:
+                            st.write(f"**ID:** {promo.id_promocion}")
+                            st.write(f"**Descuento:** {promo.descuento_porcentaje}%")
+                            st.write(f"**Estado:** {'✅ Activa' if promo.activa else '❌ Inactiva'}")
+                        
+                        with col2:
+                            # Botón para activar/desactivar
+                            nuevo_estado = not promo.activa
+                            if st.button(
+                                f"{'Desactivar' if promo.activa else 'Activar'}",
+                                key=f"toggle_{promo.id_promocion}"
+                            ):
+                                try:
+                                    promocion_orm = session.get(Promocion, promo.id_promocion)
+                                    if promocion_orm:
+                                        promocion_orm.activa = nuevo_estado
+                                        session.commit()
+                                        st.success(f"✅ Promoción {'activada' if nuevo_estado else 'desactivada'}")
+                                        st.rerun()
+                                except Exception as e:
+                                    session.rollback()
+                                    st.error(f"Error al actualizar estado: {e}")
+                        
+                        with col3:
+                            # Botón para eliminar
+                            if st.button(
+                                "Eliminar",
+                                key=f"delete_{promo.id_promocion}",
+                                type="secondary"
+                            ):
+                                try:
+                                    eliminar_promocion(session, promo.id_promocion)
+                                    session.commit()
+                                    st.success(f"✅ Promoción eliminada")
+                                    st.rerun()
+                                except Exception as e:
+                                    session.rollback()
+                                    st.error(f"Error al eliminar promoción: {e}")
+                        
+                        st.write("**Productos requeridos:**")
+                        for req in promo.requisitos:
+                            st.write(f"• {req.nombre_producto} (Cantidad: {req.cantidad_requerida})")
+        
+        except Exception as e:
+            st.error(f"Error al cargar promociones: {e}")
+            import traceback
+            st.error(traceback.format_exc())
 
 with tab5:
     st.header("📊 Balance")

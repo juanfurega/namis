@@ -20,6 +20,7 @@ from namis.services.productos import (
 )
 from namis.services.promociones import (
     crear_promocion,
+    eliminar_promocion,
     listar_promociones,
     obtener_promocion,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "eliminar_insumo",
     "eliminar_linea_receta",
     "eliminar_producto",
+    "eliminar_promocion",
     "eliminar_receta_completa",
     "eliminar_venta",
     "listar_historial_dia_por_cliente",
