@@ -11,6 +11,7 @@ from namis.exceptions import VentaNoEncontradaError
 from namis.models.detalle_venta import DetalleVenta
 from namis.models.venta import Venta
 from namis.schemas.balance import (
+    BalancePorMedioPago,
     ClienteHistorialDia,
     DiaCalendario,
     HistorialDiaPorCliente,
@@ -33,7 +34,13 @@ def _metricas_venta(venta: Venta) -> tuple[Decimal, Decimal, Decimal, Decimal]:
     subtotal_bruto = money(subtotal_bruto)
     costo_productos = money(costo_productos)
     total_cobrado = money(venta.total_cobrado)
-    ganancia = money(total_cobrado - costo_productos)
+    
+    # Si la venta está marcada como deudor, la ganancia es 0
+    if venta.es_deudor:
+        ganancia = Decimal("0.00")
+    else:
+        ganancia = money(total_cobrado - costo_productos)
+    
     return subtotal_bruto, costo_productos, total_cobrado, ganancia
 
 
@@ -166,15 +173,42 @@ def obtener_resumen_dia(session: Session, fecha: date) -> ResumenDia:
     ventas = _ventas_en_rango(session, fecha, fecha)
     total_cobrado = Decimal("0.00")
     total_ganancia = Decimal("0.00")
+    
+    # Agrupar por medio de pago
+    por_medio_pago: dict[str, tuple[int, Decimal, Decimal]] = {}
+    
     for v in ventas:
         _, _, cobrado, ganancia = _metricas_venta(v)
         total_cobrado += cobrado
         total_ganancia += ganancia
+        
+        medio = v.medio_pago or "Sin especificar"
+        if medio not in por_medio_pago:
+            por_medio_pago[medio] = (0, Decimal("0.00"), Decimal("0.00"))
+        cantidad, cobrado_medio, ganancia_medio = por_medio_pago[medio]
+        por_medio_pago[medio] = (
+            cantidad + 1,
+            cobrado_medio + cobrado,
+            ganancia_medio + ganancia
+        )
+    
+    # Crear lista de balance por medio de pago
+    balance_medio_pago = [
+        BalancePorMedioPago(
+            medio_pago=medio,
+            cantidad_ventas=cantidad,
+            total_cobrado=money(cobrado_medio),
+            total_ganancia=money(ganancia_medio)
+        )
+        for medio, (cantidad, cobrado_medio, ganancia_medio) in por_medio_pago.items()
+    ]
+    
     return ResumenDia(
         fecha=fecha,
         cantidad_ventas=len(ventas),
         total_cobrado=money(total_cobrado),
         total_ganancia=money(total_ganancia),
+        por_medio_pago=balance_medio_pago,
     )
 
 

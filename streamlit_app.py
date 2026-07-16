@@ -113,12 +113,13 @@ with tab1:
                 if st.button("Registrar Compra", key="btn_registrar_compra"):
                     if insumo_seleccionado and cantidad > 0 and precio_pagado >= 0:
                         try:
+                            from decimal import Decimal
                             id_insumo = opciones_insumos[insumo_seleccionado]
                             resultado = registrar_compra_insumo(
                                 session,
                                 id_insumo,
-                                cantidad,
-                                precio_pagado
+                                Decimal(str(cantidad)),
+                                Decimal(str(precio_pagado))
                             )
                             session.commit()
                             st.success(f"✅ Compra registrada correctamente")
@@ -230,7 +231,7 @@ with tab2:
         with st.expander("📋 Lista de Productos", expanded=True):
             try:
                 productos = session.scalars(
-                    select(Producto).order_by(Producto.nombre_producto)
+                    select(Producto).where(Producto.activo.is_(True)).order_by(Producto.nombre_producto)
                 ).all()
                 
                 if productos:
@@ -312,7 +313,7 @@ with tab2:
         
         try:
             productos = session.scalars(
-                select(Producto).order_by(Producto.nombre_producto)
+                select(Producto).where(Producto.activo.is_(True)).order_by(Producto.nombre_producto)
             ).all()
             
             if productos:
@@ -482,7 +483,7 @@ with tab2:
         
         try:
             productos = session.scalars(
-                select(Producto).order_by(Producto.nombre_producto)
+                select(Producto).where(Producto.activo.is_(True)).order_by(Producto.nombre_producto)
             ).all()
             
             if productos:
@@ -529,7 +530,7 @@ with tab2:
         with st.expander("❌ Eliminar Producto"):
             try:
                 productos = session.scalars(
-                    select(Producto).order_by(Producto.nombre_producto)
+                    select(Producto).where(Producto.activo.is_(True)).order_by(Producto.nombre_producto)
                 ).all()
                 
                 if productos:
@@ -543,14 +544,14 @@ with tab2:
                     if producto_eliminar:
                         try:
                             producto_actual = obtener_producto(session, opciones_productos[producto_eliminar])
-                            st.warning(f"⚠️ Esto eliminará completamente el producto '{producto_actual.nombre_producto}' y su receta de la base de datos")
+                            st.warning(f"⚠️ Esto marcará el producto '{producto_actual.nombre_producto}' como inactivo. No afectará el balance de ventas anteriores.")
                             
                             if st.button("Eliminar Producto", key="btn_eliminar_producto"):
                                 try:
                                     id_producto = opciones_productos[producto_eliminar]
                                     eliminar_producto(session, id_producto)
                                     session.commit()
-                                    st.success(f"✅ Producto '{producto_actual.nombre_producto}' eliminado completamente")
+                                    st.success(f"✅ Producto '{producto_actual.nombre_producto}' marcado como inactivo")
                                     st.rerun()
                                 except Exception as e:
                                     session.rollback()
@@ -589,12 +590,10 @@ with tab3:
         from decimal import Decimal
         from datetime import datetime
         
-        # Obtener productos con receta
-        productos_con_receta = session.scalars(
+        # Obtener todos los productos activos
+        productos_activos = session.scalars(
             select(Producto)
-            .join(Receta, Receta.id_producto == Producto.id_producto)
-            .where(Receta.id_producto_componente.is_(None))
-            .distinct()
+            .where(Producto.activo.is_(True))
             .order_by(Producto.nombre_producto)
         ).all()
         
@@ -623,7 +622,7 @@ with tab3:
                     value=0.0
                 )
             
-            if productos_con_receta:
+            if productos_activos:
                 st.subheader("📦 Productos")
                 
                 # Agregar productos al carrito
@@ -632,7 +631,7 @@ with tab3:
                 with col_prod:
                     producto_seleccionado = st.selectbox(
                         "Seleccionar producto",
-                        options=[""] + [f"{p.id_producto} - {p.nombre_producto}" for p in productos_con_receta],
+                        options=[""] + [f"{p.id_producto} - {p.nombre_producto}" for p in productos_activos],
                         key="producto_seleccionado"
                     )
                 
@@ -689,6 +688,7 @@ with tab3:
                         
                         st.success(f"✅ Venta registrada exitosamente. ID: {venta_registrada.id_venta}")
                         st.session_state.carrito_venta = []
+                        st.session_state.venta_exitosa = True
                         
                     except Exception as e:
                         st.error(f"Error al registrar venta: {e}")
@@ -700,6 +700,11 @@ with tab3:
         if st.button("🗑️ Limpiar carrito"):
             st.session_state.carrito_venta = []
             st.rerun()
+    
+    # Si se registró una venta exitosamente, recargar la página para actualizar el carrito visualmente
+    if st.session_state.get("venta_exitosa", False):
+        st.session_state.venta_exitosa = False
+        st.rerun()
     
     st.divider()
     
@@ -874,17 +879,15 @@ with tab4:
         from sqlalchemy import select, delete
         from decimal import Decimal
         
-        # Obtener productos con receta para usar en promociones
-        productos_con_receta = session.scalars(
+        # Obtener todos los productos activos para usar en promociones
+        productos_activos = session.scalars(
             select(Producto)
-            .join(Receta, Receta.id_producto == Producto.id_producto)
-            .where(Receta.id_producto_componente.is_(None))
-            .distinct()
+            .where(Producto.activo.is_(True))
             .order_by(Producto.nombre_producto)
         ).all()
         
-        if not productos_con_receta:
-            st.warning("No hay productos con receta disponibles para crear promociones.")
+        if not productos_activos:
+            st.warning("No hay productos disponibles para crear promociones.")
         else:
             # Sección para crear nueva promoción
             st.subheader("📝 Crear Nueva Promoción")
@@ -926,7 +929,7 @@ with tab4:
                 
                 # Crear selector de productos con cantidades
                 requisitos = []
-                for producto in productos_con_receta:
+                for producto in productos_activos:
                     col_prod, col_cant = st.columns([3, 1])
                     with col_prod:
                         incluir = st.checkbox(
@@ -1076,9 +1079,165 @@ with tab4:
 
 with tab5:
     st.header("📊 Balance")
-    st.info("Módulo de balance en desarrollo")
-    # TODO: Implementar balance
-    # - Resumen del día
-    # - Calendario mensual
-    # - Historial por cliente
-    # - Detalle de venta específica
+    
+    with session_scope() as session:
+        from namis.services import obtener_resumen_dia, obtener_resumen_mes_calendario, listar_historial_dia_por_cliente
+        from datetime import date, datetime
+        import calendar
+        
+        # Selector de vista: día, semana, mes
+        vista = st.selectbox(
+            "Seleccionar vista",
+            ["Día específico", "Mes calendario"],
+            key="balance_vista"
+        )
+        
+        if vista == "Día específico":
+            st.subheader("📅 Balance por día")
+            
+            # Selector de fecha
+            fecha_seleccionada = st.date_input(
+                "Seleccionar fecha",
+                value=date.today(),
+                key="balance_fecha"
+            )
+            
+            # Obtener resumen del día
+            resumen_dia = obtener_resumen_dia(session, fecha_seleccionada)
+            
+            # Mostrar resumen general
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Ventas", resumen_dia.cantidad_ventas)
+            with col2:
+                st.metric("Total cobrado", f"${resumen_dia.total_cobrado:.2f}")
+            with col3:
+                st.metric("Ganancia total", f"${resumen_dia.total_ganancia:.2f}")
+            
+            # Mostrar balance por medio de pago
+            if resumen_dia.por_medio_pago:
+                st.divider()
+                st.subheader("💳 Balance por medio de pago")
+                
+                for balance in resumen_dia.por_medio_pago:
+                    with st.expander(f"{balance.medio_pago} ({balance.cantidad_ventas} ventas)"):
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Ventas", balance.cantidad_ventas)
+                        with col2:
+                            st.metric("Total cobrado", f"${balance.total_cobrado:.2f}")
+                        with col3:
+                            st.metric("Ganancia", f"${balance.total_ganancia:.2f}")
+            
+            # Mostrar detalle de ventas del día
+            if resumen_dia.cantidad_ventas > 0:
+                st.divider()
+                st.subheader("📋 Ventas del día")
+                
+                historial = listar_historial_dia_por_cliente(session, fecha_seleccionada)
+                
+                for cliente in historial.clientes:
+                    with st.expander(f"👤 {cliente.nombre_cliente}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Total cobrado", f"${cliente.total_cobrado:.2f}")
+                        with col2:
+                            st.metric("Ganancia", f"${cliente.total_ganancia:.2f}")
+                        
+                        for venta in cliente.ventas:
+                            st.write(f"**Venta #{venta.id_venta}** - {venta.fecha.strftime('%H:%M')}")
+                            st.write(f"Medio de pago: {venta.medio_pago or 'Sin especificar'}")
+                            if venta.nombre_promocion:
+                                st.write(f"Promoción: {venta.nombre_promocion} (-{venta.descuento_porcentaje}% = -${venta.monto_descontado:.2f})")
+                            
+                            st.write("**Productos:**")
+                            for linea in venta.lineas:
+                                st.write(f"• {linea.nombre_producto} x{linea.cantidad} - ${linea.subtotal_cobrado:.2f}")
+                                st.write(f"  Costo: ${linea.subtotal_costo:.2f}")
+                            
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Total cobrado", f"${venta.total_cobrado:.2f}")
+                            with col2:
+                                st.metric("Costo productos", f"${venta.costo_productos:.2f}")
+                            with col3:
+                                st.metric("Ganancia", f"${venta.ganancia:.2f}")
+                            st.divider()
+            else:
+                st.info("No hay ventas registradas para esta fecha.")
+        
+        elif vista == "Mes calendario":
+            st.subheader("📆 Balance mensual")
+            
+            # Selector de mes y año
+            col1, col2 = st.columns(2)
+            with col1:
+                anio = st.number_input("Año", min_value=2020, max_value=2030, value=date.today().year, key="balance_anio")
+            with col2:
+                mes = st.number_input("Mes", min_value=1, max_value=12, value=date.today().month, key="balance_mes")
+            
+            # Obtener resumen del mes
+            resumen_mes = obtener_resumen_mes_calendario(session, anio, mes)
+            
+            # Mostrar resumen general del mes
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Ventas totales", resumen_mes.cantidad_ventas)
+            with col2:
+                st.metric("Total cobrado", f"${resumen_mes.total_cobrado:.2f}")
+            with col3:
+                st.metric("Ganancia total", f"${resumen_mes.total_ganancia:.2f}")
+            
+            # Selector de día específico para ver detalle
+            st.divider()
+            st.subheader("🔍 Ver detalle de un día específico")
+            
+            dias_con_ventas = [d for d in resumen_mes.dias if d.tiene_ventas]
+            if dias_con_ventas:
+                opciones_dias = [f"{d.fecha.day} de {calendar.month_name[mes]} (${d.total_ganancia:.2f})" for d in dias_con_ventas]
+                dia_seleccionado_idx = st.selectbox("Seleccionar día", range(len(opciones_dias)), format_func=lambda i: opciones_dias[i])
+                dia_seleccionado = dias_con_ventas[dia_seleccionado_idx]
+                
+                if st.button("Ver detalle", key="ver_detalle_dia"):
+                    st.session_state.balance_fecha_detalle = dia_seleccionado.fecha
+            
+            # Mostrar detalle si hay un día seleccionado
+            if "balance_fecha_detalle" in st.session_state:
+                fecha_detalle = st.session_state.balance_fecha_detalle
+                st.divider()
+                st.subheader(f"📋 Detalle del {fecha_detalle.strftime('%d de %B de %Y')}")
+                
+                resumen_detalle = obtener_resumen_dia(session, fecha_detalle)
+                historial_detalle = listar_historial_dia_por_cliente(session, fecha_detalle)
+                
+                # Balance por medio de pago
+                if resumen_detalle.por_medio_pago:
+                    st.subheader("💳 Balance por medio de pago")
+                    for balance in resumen_detalle.por_medio_pago:
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric(balance.medio_pago, f"${balance.total_cobrado:.2f}")
+                        with col2:
+                            st.metric("Ventas", balance.cantidad_ventas)
+                        with col3:
+                            st.metric("Ganancia", f"${balance.total_ganancia:.2f}")
+                
+                # Ventas del día
+                for cliente in historial_detalle.clientes:
+                    with st.expander(f"👤 {cliente.nombre_cliente}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Total cobrado", f"${cliente.total_cobrado:.2f}")
+                        with col2:
+                            st.metric("Ganancia", f"${cliente.total_ganancia:.2f}")
+                        
+                        for venta in cliente.ventas:
+                            st.write(f"**Venta #{venta.id_venta}** - {venta.fecha.strftime('%H:%M')}")
+                            st.write(f"Medio de pago: {venta.medio_pago or 'Sin especificar'}")
+                            for linea in venta.lineas:
+                                st.write(f"• {linea.nombre_producto} x{linea.cantidad} - ${linea.subtotal_cobrado:.2f}")
+                            st.write(f"Total: ${venta.total_cobrado:.2f} | Ganancia: ${venta.ganancia:.2f}")
+                
+                if st.button("Cerrar detalle", key="cerrar_detalle"):
+                    del st.session_state.balance_fecha_detalle
+                    st.rerun()

@@ -60,12 +60,16 @@ def actualizar_precios_producto(
 
 
 def eliminar_producto(session: Session, id_producto: int) -> None:
-    """Elimina un producto, su receta completa y referencias en promociones y recetas donde es componente.
-    NO elimina detalles de venta para no afectar el balance."""
-    if session.get(Producto, id_producto) is None:
+    """Marca un producto como inactivo (soft delete) para no afectar el balance de ventas anteriores.
+    También elimina referencias en promociones y recetas donde es componente."""
+    producto = session.get(Producto, id_producto)
+    if producto is None:
         raise ProductoNoEncontradoError(id_producto)
     
-    # Primero eliminar requisitos de promoción asociados
+    # Marcar producto como inactivo
+    producto.activo = False
+    
+    # Eliminar requisitos de promoción asociados
     session.execute(
         delete(PromocionRequisito).where(PromocionRequisito.id_producto == id_producto)
     )
@@ -75,13 +79,9 @@ def eliminar_producto(session: Session, id_producto: int) -> None:
         delete(Receta).where(Receta.id_producto_componente == id_producto)
     )
     
-    # Luego eliminar la receta del propio producto
+    # Eliminar la receta del propio producto
     session.execute(
         delete(Receta).where(Receta.id_producto == id_producto)
     )
     
-    # Finalmente eliminar el producto
-    session.execute(
-        delete(Producto).where(Producto.id_producto == id_producto)
-    )
     session.flush()

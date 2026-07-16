@@ -23,6 +23,7 @@ class Producto(Base):
     es_endulzado: Mapped[bool | None] = mapped_column(Boolean)
     precio_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     costo_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     detalles_venta: Mapped[list[DetalleVenta]] = relationship(back_populates="producto")
     recetas: Mapped[list[Receta]] = relationship(

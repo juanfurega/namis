@@ -99,9 +99,12 @@ def registrar_compra_insumo(
             session,
             id_insumo,
         )
-    except Exception:
+    except Exception as e:
         # Si falla la actualización de costos, aún así registramos la compra
         # El precio del insumo se actualiza, pero los productos pueden necesitar recálculo manual
+        import traceback
+        print(f"Error actualizando costos: {e}")
+        print(traceback.format_exc())
         productos_actualizados = []
 
     return RegistroCompraInsumoResultado(

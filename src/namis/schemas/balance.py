@@ -60,11 +60,21 @@ class VentaHistorialConCliente:
 
 
 @dataclass(frozen=True, slots=True)
+class BalancePorMedioPago:
+    """Balance desglosado por medio de pago."""
+    medio_pago: str
+    cantidad_ventas: int
+    total_cobrado: Decimal
+    total_ganancia: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class ResumenDia:
     fecha: date
     cantidad_ventas: int
     total_cobrado: Decimal
     total_ganancia: Decimal
+    por_medio_pago: list[BalancePorMedioPago]
 
 
 @dataclass(frozen=True, slots=True)
