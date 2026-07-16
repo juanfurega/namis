@@ -4,3 +4,6 @@ venv/
 __pycache__/
 *.pyc
 .verify_namis.sqlite
+.streamlitsecrets.toml
+.streamlit/
+test_db.py
