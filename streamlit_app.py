@@ -415,7 +415,7 @@ with tab2:
                                 "Cantidad Necesaria (unidades)",
                                 min_value=0.01,
                                 step=0.01,
-                                value=1,
+                                value=0.01,
                                 key="cantidad_producto_receta"
                             )
                             
