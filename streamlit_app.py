@@ -577,7 +577,7 @@ with tab3:
         st.session_state.carrito_venta = []
     
     # Formulario para registrar venta
-    st.subheader("📝 Registrar Nueva Venta")
+    st.subheader("📝 Registrar Venta")
     
     with session_scope() as session:
         from namis.services import (
@@ -650,7 +650,7 @@ with tab3:
                 
                 # Mostrar carrito actual
                 if st.session_state.carrito_venta:
-                    st.write("🛒 Productos en el carrito:")
+                    st.write("🛒 Carrito:")
                     for i, item in enumerate(st.session_state.carrito_venta):
                         producto = session.get(Producto, item["id_producto"])
                         st.write(f"- {producto.nombre_producto} x {item['cantidad']}")
@@ -711,7 +711,7 @@ with tab3:
     st.divider()
     
     # Lista de últimas 20 ventas (usando una nueva sesión)
-    st.subheader("📋 Últimas 20 Ventas")
+    st.subheader("📋 Últimas Ventas")
     
     with session_scope() as session:
         from namis.services import listar_ultimas_ventas, eliminar_venta
@@ -802,7 +802,7 @@ with tab3:
                 st.markdown(html_table, unsafe_allow_html=True)
                 
                 # Sección para marcar deudor
-                st.subheader("📝 Marcar/Desmarcar Deudor")
+                st.subheader("¿Deudor?")
                 venta_seleccionada = st.selectbox(
                     "Seleccionar venta",
                     options=[""] + [f"{v.id_venta} - {v.cliente.nombre} - {v.fecha.strftime('%d/%m/%Y') if v.fecha else 'N/A'}" for v in ventas],
