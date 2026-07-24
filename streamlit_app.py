@@ -357,7 +357,7 @@ with tab2:
                         st.error(f"Error al obtener receta: {e}")
                     
                     # Agregar componente a receta
-                    st.markdown("### ➕ Agregar a Receta")
+                    st.subheader("➕ Agregar a Receta")
                     
                     tipo_componente = st.radio(
                         "Tipo",
@@ -438,7 +438,7 @@ with tab2:
                             st.warning("No hay otros productos disponibles como componentes")
                     
                     # Eliminar línea de receta
-                    st.markdown("### 🗑️ Eliminar de Receta")
+                    st.subheader("🗑️ Eliminar de Receta")
                     
                     try:
                         receta_actual = obtener_receta(session, id_producto)
@@ -471,39 +471,59 @@ with tab2:
                             st.info("No hay líneas para eliminar")
                     except Exception as e:
                         st.error(f"Error al cargar líneas: {e}")
-                    
-                    # Actualizar precio de producto
-                    st.markdown("### 💲 Actualizar Precio de Venta")
-                    
-                    producto = session.get(Producto, id_producto)
-                    nuevo_precio = st.number_input(
-                        "Nuevo Precio de Venta ($)",
-                        min_value=0.0,
-                        step=0.01,
-                        format="%.2f",
-                        value=producto.precio_actual if producto else 0.0,
-                        key="nuevo_precio"
-                    )
-                    
-                    if st.button("Actualizar Precio", key="btn_actualizar_precio"):
-                        if nuevo_precio >= 0:
-                            try:
-                                actualizar_precios_producto(session, id_producto, nuevo_precio)
-                                session.commit()
-                                st.success("✅ Precio actualizado correctamente")
-                                st.rerun()
-                            except Exception as e:
-                                session.rollback()
-                                st.error(f"Error al actualizar precio: {e}")
-                                import traceback
-                                st.error(traceback.format_exc())
-                        else:
-                            st.warning("Ingrese un precio válido")
             
             else:
                 st.warning("No hay productos disponibles. Primero cree un producto.")
         except Exception as e:
             st.error(f"Error al cargar productos: {e}")
+            import traceback
+            st.error(traceback.format_exc())
+        
+        st.divider()
+        
+        # Actualizar precio de producto
+        st.subheader("💲 Actualizar Precio de Venta")
+        
+        try:
+            productos = session.scalars(
+                select(Producto).where(Producto.activo.is_(True)).order_by(Producto.nombre_producto)
+            ).all()
+            
+            if productos:
+                opciones_productos = {f"{p.id_producto} - {p.nombre_producto} (Precio actual: ${p.precio_actual})": p.id_producto for p in productos}
+                producto_precio = st.selectbox(
+                    "Seleccionar Producto",
+                    options=list(opciones_productos.keys()),
+                    key="select_producto_precio"
+                )
+                
+                nuevo_precio = st.number_input(
+                    "Nuevo Precio de Venta ($)",
+                    min_value=0.0,
+                    step=0.01,
+                    format="%.2f",
+                    key="nuevo_precio"
+                )
+                
+                if st.button("Actualizar Precio", key="btn_actualizar_precio"):
+                    if producto_precio and nuevo_precio >= 0:
+                        try:
+                            id_producto = opciones_productos[producto_precio]
+                            actualizar_precios_producto(session, id_producto, nuevo_precio)
+                            session.commit()
+                            st.success("✅ Precio actualizado correctamente")
+                            st.rerun()
+                        except Exception as e:
+                            session.rollback()
+                            st.error(f"Error al actualizar precio: {e}")
+                            import traceback
+                            st.error(traceback.format_exc())
+                    else:
+                        st.warning("Seleccione un producto y precio válido")
+            else:
+                st.warning("No hay productos disponibles")
+        except Exception as e:
+            st.error(f"Error al actualizar precio: {e}")
             import traceback
             st.error(traceback.format_exc())
         
