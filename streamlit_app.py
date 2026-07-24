@@ -357,7 +357,7 @@ with tab2:
                         st.error(f"Error al obtener receta: {e}")
                     
                     # Agregar componente a receta
-                    st.subheader("➕ Agregar ingredientes")
+                    st.subheader("➕ Agregar Ingrediente")
                     
                     tipo_componente = st.radio(
                         "Tipo",
@@ -438,7 +438,7 @@ with tab2:
                             st.warning("No hay otros productos disponibles como componentes")
                     
                     # Eliminar línea de receta
-                    st.subheader("🗑️ Eliminar ingrediente")
+                    st.subheader("🗑️ Eliminar Ingrediente")
                     
                     try:
                         receta_actual = obtener_receta(session, id_producto)
@@ -481,7 +481,7 @@ with tab2:
         
         
         # Actualizar precio de producto
-        st.subheader("💲 Actualizar Precio de Venta")
+        st.subheader("💲 Actualizar Precio")
         
         try:
             productos = session.scalars(
@@ -526,7 +526,8 @@ with tab2:
             import traceback
             st.error(traceback.format_exc())
         
-        
+        st.divider()
+
         # Eliminar producto completo (desplegable)
         with st.expander("❌ Eliminar Receta"):
             try:
