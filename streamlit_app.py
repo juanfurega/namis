@@ -242,11 +242,14 @@ with tab2:
                 if productos:
                     data = []
                     for prod in productos:
+                        # Calcular el costo actual dinámicamente para mostrar el valor correcto
+                        from namis.services.costos import calcular_costo_producto
+                        costo_calculado = calcular_costo_producto(session, prod.id_producto)
                         data.append({
                             "ID": prod.id_producto,
                             "Nombre": prod.nombre_producto,
                             "Precio Venta ($)": prod.precio_actual,
-                            "Costo Actual ($)": prod.costo_actual,
+                            "Costo Actual ($)": costo_calculado,
                             "Tamaño (g)": prod.tamano_g if prod.tamano_g else "-"
                         })
                     
