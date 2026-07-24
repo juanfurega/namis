@@ -475,12 +475,13 @@ with tab2:
                     # Actualizar precio de producto
                     st.markdown("### 💲 Actualizar Precio de Venta")
                     
+                    producto = session.get(Producto, id_producto)
                     nuevo_precio = st.number_input(
                         "Nuevo Precio de Venta ($)",
                         min_value=0.0,
                         step=0.01,
                         format="%.2f",
-                        value=producto.precio_actual,
+                        value=producto.precio_actual if producto else 0.0,
                         key="nuevo_precio"
                     )
                     
