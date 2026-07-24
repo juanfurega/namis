@@ -413,9 +413,9 @@ with tab2:
                             )
                             cantidad = st.number_input(
                                 "Cantidad Necesaria (gramos)",
-                                min_value=0.01,
-                                step=0.01,
-                                value=0.01,
+                                min_value=1,
+                                step=1,
+                                value=1,
                                 key="cantidad_producto_receta"
                             )
                             
