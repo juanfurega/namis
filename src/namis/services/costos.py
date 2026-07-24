@@ -65,7 +65,7 @@ def _calcular_costo_receta_base(
         elif linea.id_producto_componente is not None:
             if linea.id_producto_componente in stack:
                 raise RecetaCiclicaError(id_producto, linea.id_producto_componente)
-            # Usar el costo base del componente (sin ajuste final)
+            # Usar el costo base del componente (sin ajuste final al tamaño)
             costo_comp, _ = _calcular_costo_receta_base(
                 session,
                 linea.id_producto_componente,
@@ -89,6 +89,7 @@ def calcular_costo_producto(
 ) -> Decimal:
     """
     Calcula el costo total del producto ajustado a su tamaño.
+    Si la receta está definida para un tamaño diferente al producto, ajusta proporcionalmente.
     """
     # Calcular el costo base y tamaño de la receta
     costo_receta, tamano_receta = _calcular_costo_receta_base(session, id_producto, _stack)

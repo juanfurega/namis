@@ -185,26 +185,15 @@ def obtener_receta(session: Session, id_producto: int) -> RecetaDetalle:
                     tipo="producto",
                     id_componente=linea.id_producto_componente,
                     nombre_componente=componente.nombre_producto,
-                    unidad="gr",
+                    unidad="g",
                     cantidad_necesaria=linea.cantidad_necesaria,
                     costo_unitario_componente=costo_por_gramo,
                     costo_linea=costo_linea,
                 )
             )
 
-    # Calcular el costo total de la receta para el tamaño definido
-    costo_receta = money(sum((ln.costo_linea for ln in lineas), Decimal("0.00")))
-    
-    # Calcular el tamaño total de la receta
-    tamano_receta = sum((linea.cantidad_necesaria for linea in lineas_orm), Decimal("0.00"))
-    
-    # Ajustar el costo total al tamaño real del producto
-    if tamano_receta > 0 and producto.tamano_g > 0:
-        costo_por_gramo = costo_receta / tamano_receta
-        costo_total = costo_por_gramo * Decimal(str(producto.tamano_g))
-        costo_total = money(costo_total)
-    else:
-        costo_total = costo_receta
+    # Calcular el costo total de la receta como la suma de los costos de las líneas
+    costo_total = money(sum((ln.costo_linea for ln in lineas), Decimal("0.00")))
     
     return RecetaDetalle(
         id_producto=producto.id_producto,
