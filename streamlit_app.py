@@ -314,7 +314,7 @@ with tab2:
         st.divider()
         
         # Ver y editar receta
-        st.subheader("👩‍🍳 Ver y Editar Receta")
+        st.header("👩‍🍳 Receta")
         
         try:
             productos = session.scalars(
@@ -324,7 +324,7 @@ with tab2:
             if productos:
                 opciones_productos = {f"{p.id_producto} - {p.nombre_producto}": p.id_producto for p in productos}
                 producto_seleccionado = st.selectbox(
-                    "Seleccionar Producto",
+                    "Seleccionar Receta",
                     options=list(opciones_productos.keys()),
                     key="select_producto_receta"
                 )
@@ -357,7 +357,7 @@ with tab2:
                         st.error(f"Error al obtener receta: {e}")
                     
                     # Agregar componente a receta
-                    st.subheader("➕ Agregar a Receta")
+                    st.subheader("➕ Agregar ingredientes")
                     
                     tipo_componente = st.radio(
                         "Tipo",
@@ -383,7 +383,7 @@ with tab2:
                                 key="cantidad_insumo_receta"
                             )
                             
-                            if st.button("Agregar Insumo a Receta", key="btn_agregar_insumo"):
+                            if st.button("Agregar ingrediente", key="btn_agregar_insumo"):
                                 if insumo_seleccionado and cantidad > 0:
                                     try:
                                         from decimal import Decimal
@@ -418,14 +418,14 @@ with tab2:
                                 key="cantidad_producto_receta"
                             )
                             
-                            if st.button("Agregar Producto a Receta", key="btn_agregar_producto"):
+                            if st.button("Agregar ingrediente", key="btn_agregar_producto"):
                                 if producto_componente and cantidad > 0:
                                     try:
                                         from decimal import Decimal
                                         id_componente = opciones_productos_componente[producto_componente]
                                         agregar_producto_a_receta(session, id_producto, id_componente, Decimal(str(cantidad)))
                                         session.commit()
-                                        st.success("✅ Producto agregado como componente")
+                                        st.success("✅ Producto agregado a la receta")
                                         st.rerun()
                                     except Exception as e:
                                         session.rollback()
@@ -438,7 +438,7 @@ with tab2:
                             st.warning("No hay otros productos disponibles como componentes")
                     
                     # Eliminar línea de receta
-                    st.subheader("🗑️ Eliminar de Receta")
+                    st.subheader("🗑️ Eliminar ingrediente")
                     
                     try:
                         receta_actual = obtener_receta(session, id_producto)
@@ -479,7 +479,6 @@ with tab2:
             import traceback
             st.error(traceback.format_exc())
         
-        st.divider()
         
         # Actualizar precio de producto
         st.subheader("💲 Actualizar Precio de Venta")
@@ -527,10 +526,9 @@ with tab2:
             import traceback
             st.error(traceback.format_exc())
         
-        st.divider()
         
         # Eliminar producto completo (desplegable)
-        with st.expander("❌ Eliminar Producto"):
+        with st.expander("❌ Eliminar Receta"):
             try:
                 productos = session.scalars(
                     select(Producto).where(Producto.activo.is_(True)).order_by(Producto.nombre_producto)
