@@ -78,7 +78,7 @@ CREATE TABLE recetas (
     id_producto INT NOT NULL, -- Producto dueño de la receta (ej: postre)
     id_insumo INT NULL, -- Línea de materia prima (XOR con id_producto_componente)
     id_producto_componente INT NULL, -- Línea de sub-receta (ej: yogurt dentro de postre)
-    cantidad_necesaria DECIMAL(10, 2) NOT NULL, -- En unidad del insumo, o unidades del producto componente
+    cantidad_necesaria DECIMAL(10, 2) NOT NULL, -- En unidad del insumo, o gramos del producto componente
     FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
     FOREIGN KEY (id_insumo) REFERENCES insumos(id_insumo) ON DELETE RESTRICT,
     FOREIGN KEY (id_producto_componente) REFERENCES productos(id_producto) ON DELETE RESTRICT,

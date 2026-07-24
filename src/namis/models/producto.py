@@ -19,7 +19,7 @@ class Producto(Base):
 
     id_producto: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nombre_producto: Mapped[str] = mapped_column(String(100), nullable=False)
-    tamano_g: Mapped[int | None] = mapped_column(Integer)
+    tamano_g: Mapped[int] = mapped_column(Integer, nullable=False)
     es_endulzado: Mapped[bool | None] = mapped_column(Boolean)
     precio_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     costo_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
