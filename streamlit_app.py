@@ -280,21 +280,21 @@ with tab2:
             
             with col3:
                 tamano = st.number_input(
-                    "Tamaño (g) - Opcional",
-                    min_value=0,
+                    "Tamaño (g)",
+                    min_value=1,
                     step=1,
-                    value=None,
+                    value=350,
                     key="tamano_producto"
                 )
             
             if st.button("Crear Producto", key="btn_crear_producto"):
-                if nombre_producto and precio_venta >= 0:
+                if nombre_producto and precio_venta >= 0 and tamano > 0:
                     try:
                         nuevo_producto = crear_producto(
                             session,
                             nombre_producto,
                             precio_venta,
-                            tamano_g=tamano if tamano > 0 else None
+                            tamano_g=tamano
                         )
                         session.commit()
                         st.success(f"✅ Producto '{nombre_producto}' creado correctamente (ID: {nuevo_producto.id_producto})")
@@ -305,7 +305,7 @@ with tab2:
                         import traceback
                         st.error(traceback.format_exc())
                 else:
-                    st.warning("Complete el nombre y el precio")
+                    st.warning("Complete el nombre, precio y tamaño")
         except Exception as e:
             st.error(f"Error al crear producto: {e}")
             import traceback
@@ -404,7 +404,7 @@ with tab2:
                             st.warning("No hay insumos disponibles")
                     
                     else:  # Producto
-                        opciones_productos_componente = {f"{p.id_producto} - {p.nombre_producto}": p.id_producto for p in productos if p.id_producto != id_producto}
+                        opciones_productos_componente = {f"{p.id_producto} - {p.nombre_producto} ({p.tamano_g}g)": p.id_producto for p in productos if p.id_producto != id_producto}
                         if opciones_productos_componente:
                             producto_componente = st.selectbox(
                                 "Seleccionar Producto Componente",
@@ -412,7 +412,7 @@ with tab2:
                                 key="select_producto_componente"
                             )
                             cantidad = st.number_input(
-                                "Cantidad Necesaria (unidades)",
+                                "Cantidad Necesaria (gramos)",
                                 min_value=0.01,
                                 step=0.01,
                                 value=0.01,

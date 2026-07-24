@@ -7,7 +7,7 @@ CREATE TABLE clientes (
 CREATE TABLE productos ( -- PRODUCTO QUE SE VENDE
     id_producto INT AUTO_INCREMENT PRIMARY KEY,
     nombre_producto VARCHAR(100) NOT NULL, 
-    tamano_g INT, -- 350, 500 o 750
+    tamano_g INT NOT NULL, -- 350, 500 o 750 (obligatorio)
     es_endulzado BOOLEAN, -- 1 para Sí, 0 para Natural
     precio_actual DECIMAL(10, 2) NOT NULL, -- precio de venta
     costo_actual DECIMAL(10, 2) NOT NULL -- Se debe actualizar cada vez que cambia el precio del insumo 
