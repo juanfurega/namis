@@ -88,23 +88,9 @@ def calcular_costo_producto(
     _stack: frozenset[int] | None = None,
 ) -> Decimal:
     """
-    Calcula el costo total del producto ajustado a su tamaño.
-    Si la receta está definida para un tamaño diferente al producto, ajusta proporcionalmente.
+    Calcula el costo total del producto como la suma de los costos de sus componentes.
     """
-    # Calcular el costo base y tamaño de la receta
-    costo_receta, tamano_receta = _calcular_costo_receta_base(session, id_producto, _stack)
-    
-    # Obtener el producto para ajustar el costo a su tamaño real
-    producto = session.get(Producto, id_producto)
-    assert producto is not None
-    
-    # Si la receta tiene un tamaño definido y el producto tiene tamaño diferente,
-    # ajustar el costo proporcionalmente
-    if tamano_receta > 0 and producto.tamano_g > 0:
-        costo_por_gramo = costo_receta / tamano_receta
-        costo_ajustado = costo_por_gramo * Decimal(str(producto.tamano_g))
-        return money(costo_ajustado)
-    
+    costo_receta, _ = _calcular_costo_receta_base(session, id_producto, _stack)
     return costo_receta
 
 
