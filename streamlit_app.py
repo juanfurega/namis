@@ -80,7 +80,7 @@ with tab1:
         st.divider()
         
         # Registrar compra de insumo
-        st.subheader("🛒 Registrar Compra de Insumo")
+        st.subheader("🛒 Registrar Compra")
         
         try:
             insumos = listar_insumos_actuales(session)
@@ -892,7 +892,7 @@ with tab4:
             st.warning("No hay productos disponibles para crear promociones.")
         else:
             # Sección para crear nueva promoción
-            st.subheader("📝 Crear Nueva Promoción")
+            st.subheader("📝 Crear Promoción")
             
             # Inicializar session state si no existe
             if "promo_nombre" not in st.session_state:
@@ -1019,7 +1019,7 @@ with tab4:
         st.divider()
         
         # Listar promociones existentes
-        st.subheader("📋 Promociones Existentes")
+        st.subheader("📋 Promociones")
         
         try:
             promociones = listar_promociones(session)
