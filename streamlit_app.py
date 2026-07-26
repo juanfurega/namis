@@ -312,7 +312,7 @@ with tab2:
         st.divider()
         
         # Ver y editar receta
-        st.header("Receta")
+        st.subheader("👩‍🍳 Ver y Editar Receta")
         
         try:
             productos = session.scalars(
@@ -573,7 +573,9 @@ with tab3:
     if "carrito_venta" not in st.session_state:
         st.session_state.carrito_venta = []
     
-    # Formulario para registrar venta 
+    # Formulario para registrar venta
+    st.subheader("📝 Registrar Nueva Venta")
+    
     with session_scope() as session:
         from namis.services import (
             actualizar_estado_deudor,
@@ -706,7 +708,7 @@ with tab3:
     st.divider()
     
     # Lista de últimas 20 ventas (usando una nueva sesión)
-    st.subheader("Ventas")
+    st.subheader("📋 Últimas 20 Ventas")
     
     with session_scope() as session:
         from namis.services import listar_ultimas_ventas, eliminar_venta
@@ -886,7 +888,7 @@ with tab4:
             st.warning("No hay productos disponibles para crear promociones.")
         else:
             # Sección para crear nueva promoción
-            st.subheader("Crear Promoción")
+            st.subheader("📝 Crear Nueva Promoción")
             
             # Inicializar session state si no existe
             if "promo_nombre" not in st.session_state:
@@ -1013,7 +1015,7 @@ with tab4:
         st.divider()
         
         # Listar promociones existentes
-        st.subheader("Promociones")
+        st.subheader("📋 Promociones Existentes")
         
         try:
             promociones = listar_promociones(session)
