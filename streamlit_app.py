@@ -1,17 +1,22 @@
 """
 Interfaz Streamlit para Namis - Sistema de gestión de yogurtería
 """
+import sys
+import os
+
+# Le decimos a Python que también busque módulos adentro de la carpeta 'src'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 import streamlit as st
 from namis.database import session_scope
 
 st.set_page_config(
-    page_title="Namis - Gestión Yogurtería",
+    page_title="Namis",
     page_icon="⭐",
     layout="wide"
 )
 
-st.title("Nami's")
+st.title("Nami's ⭐⭐⭐")
 
 # Barra lateral con información de conexión
 with st.sidebar:
@@ -32,7 +37,6 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 ])
 
 with tab1:
-    st.header("📦 Gestión de Insumos")
     
     # Usar una sola sesión para toda la pestaña
     with session_scope() as session:
@@ -75,7 +79,7 @@ with tab1:
         st.divider()
         
         # Registrar compra de insumo
-        st.subheader("🛒 Registrar Compra de Insumo")
+        st.subheader("🛒 Registrar Compra")
         
         try:
             insumos = listar_insumos_actuales(session)
@@ -209,7 +213,6 @@ with tab1:
                 st.error(traceback.format_exc())
 
 with tab2:
-    st.header("🥄 Productos y Recetas")
     
     # Usar una sola sesión para toda la pestaña
     with session_scope() as session:
@@ -275,21 +278,21 @@ with tab2:
             
             with col3:
                 tamano = st.number_input(
-                    "Tamaño (g) - Opcional",
-                    min_value=0,
+                    "Tamaño (g)",
+                    min_value=1,
                     step=1,
-                    value=None,
+                    value=350,
                     key="tamano_producto"
                 )
             
             if st.button("Crear Producto", key="btn_crear_producto"):
-                if nombre_producto and precio_venta >= 0:
+                if nombre_producto and precio_venta >= 0 and tamano > 0:
                     try:
                         nuevo_producto = crear_producto(
                             session,
                             nombre_producto,
                             precio_venta,
-                            tamano_g=tamano if tamano > 0 else None
+                            tamano_g=tamano
                         )
                         session.commit()
                         st.success(f"✅ Producto '{nombre_producto}' creado correctamente (ID: {nuevo_producto.id_producto})")
@@ -300,7 +303,7 @@ with tab2:
                         import traceback
                         st.error(traceback.format_exc())
                 else:
-                    st.warning("Complete el nombre y el precio")
+                    st.warning("Complete el nombre, precio y tamaño")
         except Exception as e:
             st.error(f"Error al crear producto: {e}")
             import traceback
@@ -309,7 +312,7 @@ with tab2:
         st.divider()
         
         # Ver y editar receta
-        st.subheader("👩‍🍳 Ver y Editar Receta")
+        st.header("Receta")
         
         try:
             productos = session.scalars(
@@ -319,7 +322,7 @@ with tab2:
             if productos:
                 opciones_productos = {f"{p.id_producto} - {p.nombre_producto}": p.id_producto for p in productos}
                 producto_seleccionado = st.selectbox(
-                    "Seleccionar Producto",
+                    "Seleccionar Receta",
                     options=list(opciones_productos.keys()),
                     key="select_producto_receta"
                 )
@@ -352,8 +355,7 @@ with tab2:
                         st.error(f"Error al obtener receta: {e}")
                     
                     # Agregar componente a receta
-                    st.divider()
-                    st.subheader("➕ Agregar a Receta")
+                    st.subheader("➕ Agregar Ingrediente")
                     
                     tipo_componente = st.radio(
                         "Tipo",
@@ -379,7 +381,7 @@ with tab2:
                                 key="cantidad_insumo_receta"
                             )
                             
-                            if st.button("Agregar Insumo a Receta", key="btn_agregar_insumo"):
+                            if st.button("Agregar ingrediente", key="btn_agregar_insumo"):
                                 if insumo_seleccionado and cantidad > 0:
                                     try:
                                         from decimal import Decimal
@@ -399,7 +401,7 @@ with tab2:
                             st.warning("No hay insumos disponibles")
                     
                     else:  # Producto
-                        opciones_productos_componente = {f"{p.id_producto} - {p.nombre_producto}": p.id_producto for p in productos if p.id_producto != id_producto}
+                        opciones_productos_componente = {f"{p.id_producto} - {p.nombre_producto} ({p.tamano_g}g)": p.id_producto for p in productos if p.id_producto != id_producto}
                         if opciones_productos_componente:
                             producto_componente = st.selectbox(
                                 "Seleccionar Producto Componente",
@@ -407,21 +409,21 @@ with tab2:
                                 key="select_producto_componente"
                             )
                             cantidad = st.number_input(
-                                "Cantidad Necesaria (unidades)",
+                                "Cantidad Necesaria (gramos)",
                                 min_value=1,
                                 step=1,
                                 value=1,
                                 key="cantidad_producto_receta"
                             )
                             
-                            if st.button("Agregar Producto a Receta", key="btn_agregar_producto"):
+                            if st.button("Agregar ingrediente", key="btn_agregar_producto"):
                                 if producto_componente and cantidad > 0:
                                     try:
                                         from decimal import Decimal
                                         id_componente = opciones_productos_componente[producto_componente]
                                         agregar_producto_a_receta(session, id_producto, id_componente, Decimal(str(cantidad)))
                                         session.commit()
-                                        st.success("✅ Producto agregado como componente")
+                                        st.success("✅ Producto agregado a la receta")
                                         st.rerun()
                                     except Exception as e:
                                         session.rollback()
@@ -434,8 +436,7 @@ with tab2:
                             st.warning("No hay otros productos disponibles como componentes")
                     
                     # Eliminar línea de receta
-                    st.divider()
-                    st.subheader("🗑️ Eliminar de Receta")
+                    st.subheader("🗑️ Eliminar Ingrediente")
                     
                     try:
                         receta_actual = obtener_receta(session, id_producto)
@@ -476,10 +477,9 @@ with tab2:
             import traceback
             st.error(traceback.format_exc())
         
-        st.divider()
         
         # Actualizar precio de producto
-        st.subheader("💲 Actualizar Precio de Venta")
+        st.subheader("💲 Actualizar Precio")
         
         try:
             productos = session.scalars(
@@ -525,9 +525,9 @@ with tab2:
             st.error(traceback.format_exc())
         
         st.divider()
-        
+
         # Eliminar producto completo (desplegable)
-        with st.expander("❌ Eliminar Producto"):
+        with st.expander("❌ Eliminar Receta"):
             try:
                 productos = session.scalars(
                     select(Producto).where(Producto.activo.is_(True)).order_by(Producto.nombre_producto)
@@ -568,15 +568,12 @@ with tab2:
                 st.error(traceback.format_exc())
 
 with tab3:
-    st.header("💰 Ventas")
     
     # Carrito de productos
     if "carrito_venta" not in st.session_state:
         st.session_state.carrito_venta = []
     
-    # Formulario para registrar venta
-    st.subheader("📝 Registrar Nueva Venta")
-    
+    # Formulario para registrar venta 
     with session_scope() as session:
         from namis.services import (
             actualizar_estado_deudor,
@@ -623,7 +620,7 @@ with tab3:
                 )
             
             if productos_activos:
-                st.subheader("📦 Productos")
+                st.subheader("Productos")
                 
                 # Agregar productos al carrito
                 col_prod, col_cant = st.columns([3, 1])
@@ -648,7 +645,7 @@ with tab3:
                 
                 # Mostrar carrito actual
                 if st.session_state.carrito_venta:
-                    st.write("🛒 Productos en el carrito:")
+                    st.write("🛒 Carrito:")
                     for i, item in enumerate(st.session_state.carrito_venta):
                         producto = session.get(Producto, item["id_producto"])
                         st.write(f"- {producto.nombre_producto} x {item['cantidad']}")
@@ -709,7 +706,7 @@ with tab3:
     st.divider()
     
     # Lista de últimas 20 ventas (usando una nueva sesión)
-    st.subheader("📋 Últimas 20 Ventas")
+    st.subheader("Ventas")
     
     with session_scope() as session:
         from namis.services import listar_ultimas_ventas, eliminar_venta
@@ -800,7 +797,7 @@ with tab3:
                 st.markdown(html_table, unsafe_allow_html=True)
                 
                 # Sección para marcar deudor
-                st.subheader("📝 Marcar/Desmarcar Deudor")
+                st.subheader("¿Deudor?")
                 venta_seleccionada = st.selectbox(
                     "Seleccionar venta",
                     options=[""] + [f"{v.id_venta} - {v.cliente.nombre} - {v.fecha.strftime('%d/%m/%Y') if v.fecha else 'N/A'}" for v in ventas],
@@ -867,7 +864,6 @@ with tab3:
             st.error(traceback.format_exc())
 
 with tab4:
-    st.header("🏷️ Promociones")
     
     with session_scope() as session:
         from namis.services import crear_promocion, eliminar_promocion, listar_promociones, obtener_promocion
@@ -890,7 +886,7 @@ with tab4:
             st.warning("No hay productos disponibles para crear promociones.")
         else:
             # Sección para crear nueva promoción
-            st.subheader("📝 Crear Nueva Promoción")
+            st.subheader("Crear Promoción")
             
             # Inicializar session state si no existe
             if "promo_nombre" not in st.session_state:
@@ -1017,7 +1013,7 @@ with tab4:
         st.divider()
         
         # Listar promociones existentes
-        st.subheader("📋 Promociones Existentes")
+        st.subheader("Promociones")
         
         try:
             promociones = listar_promociones(session)
@@ -1078,7 +1074,6 @@ with tab4:
             st.error(traceback.format_exc())
 
 with tab5:
-    st.header("📊 Balance")
     
     with session_scope() as session:
         from namis.services import obtener_resumen_dia, obtener_resumen_mes_calendario, listar_historial_dia_por_cliente
@@ -1093,7 +1088,7 @@ with tab5:
         )
         
         if vista == "Día específico":
-            st.subheader("📅 Balance por día")
+            st.subheader("Balance diario")
             
             # Selector de fecha
             fecha_seleccionada = st.date_input(
@@ -1117,7 +1112,7 @@ with tab5:
             # Mostrar balance por medio de pago
             if resumen_dia.por_medio_pago:
                 st.divider()
-                st.subheader("💳 Balance por medio de pago")
+                st.subheader("Balance por medio de pago")
                 
                 for balance in resumen_dia.por_medio_pago:
                     with st.expander(f"{balance.medio_pago} ({balance.cantidad_ventas} ventas)"):
@@ -1132,7 +1127,7 @@ with tab5:
             # Mostrar detalle de ventas del día
             if resumen_dia.cantidad_ventas > 0:
                 st.divider()
-                st.subheader("📋 Ventas del día")
+                st.subheader("Ventas del día")
                 
                 historial = listar_historial_dia_por_cliente(session, fecha_seleccionada)
                 
@@ -1167,7 +1162,7 @@ with tab5:
                 st.info("No hay ventas registradas para esta fecha.")
         
         elif vista == "Mes calendario":
-            st.subheader("📆 Balance mensual")
+            st.subheader("Balance mensual")
             
             # Selector de mes y año
             col1, col2 = st.columns(2)
@@ -1190,7 +1185,7 @@ with tab5:
             
             # Selector de día específico para ver detalle
             st.divider()
-            st.subheader("🔍 Ver detalle de un día específico")
+            st.subheader("Ver detalle de un día específico")
             
             dias_con_ventas = [d for d in resumen_mes.dias if d.tiene_ventas]
             if dias_con_ventas:
@@ -1205,14 +1200,14 @@ with tab5:
             if "balance_fecha_detalle" in st.session_state:
                 fecha_detalle = st.session_state.balance_fecha_detalle
                 st.divider()
-                st.subheader(f"📋 Detalle del {fecha_detalle.strftime('%d de %B de %Y')}")
+                st.subheader(f"Detalle del {fecha_detalle.strftime('%d de %B de %Y')}")
                 
                 resumen_detalle = obtener_resumen_dia(session, fecha_detalle)
                 historial_detalle = listar_historial_dia_por_cliente(session, fecha_detalle)
                 
                 # Balance por medio de pago
                 if resumen_detalle.por_medio_pago:
-                    st.subheader("💳 Balance por medio de pago")
+                    st.subheader("Balance por medio de pago")
                     for balance in resumen_detalle.por_medio_pago:
                         col1, col2, col3 = st.columns(3)
                         with col1:

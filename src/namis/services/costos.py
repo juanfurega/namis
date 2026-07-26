@@ -28,11 +28,16 @@ def costo_linea_insumo(
 costo_linea_receta = costo_linea_insumo
 
 
-def calcular_costo_producto(
+def _calcular_costo_receta_base(
     session: Session,
     id_producto: int,
     _stack: frozenset[int] | None = None,
-) -> Decimal:
+) -> tuple[Decimal, Decimal]:
+    """
+    Calcula el costo base de la receta y el tamaño total de la receta.
+    Retorna (costo_receta, tamano_receta).
+    Esta función NO ajusta el costo al tamaño del producto final.
+    """
     if session.get(Producto, id_producto) is None:
         raise ProductoNoEncontradoError(id_producto)
 
@@ -46,7 +51,10 @@ def calcular_costo_producto(
     ).all()
 
     total = Decimal("0.00")
+    tamano_receta = Decimal("0.00")
+    
     for linea in lineas:
+        tamano_receta += linea.cantidad_necesaria
         if linea.id_insumo is not None:
             vigente = obtener_precio_vigente_insumo(session, linea.id_insumo)
             total += costo_linea_insumo(
@@ -57,16 +65,33 @@ def calcular_costo_producto(
         elif linea.id_producto_componente is not None:
             if linea.id_producto_componente in stack:
                 raise RecetaCiclicaError(id_producto, linea.id_producto_componente)
-            costo_comp = calcular_costo_producto(
+            # Usar el costo base del componente (sin ajuste final al tamaño)
+            costo_comp, _ = _calcular_costo_receta_base(
                 session,
                 linea.id_producto_componente,
                 stack,
             )
-            total += money(linea.cantidad_necesaria * costo_comp)
+            # Obtener el tamaño del producto componente para calcular costo por gramo
+            componente = session.get(Producto, linea.id_producto_componente)
+            assert componente is not None
+            costo_por_gramo = costo_comp / Decimal(str(componente.tamano_g))
+            total += money(linea.cantidad_necesaria * costo_por_gramo)
         else:
             raise ValueError(f"Línea de receta {linea.id_receta} sin componente.")
 
-    return money(total)
+    return money(total), tamano_receta
+
+
+def calcular_costo_producto(
+    session: Session,
+    id_producto: int,
+    _stack: frozenset[int] | None = None,
+) -> Decimal:
+    """
+    Calcula el costo total del producto como la suma de los costos de sus componentes.
+    """
+    costo_receta, _ = _calcular_costo_receta_base(session, id_producto, _stack)
+    return costo_receta
 
 
 def actualizar_costo_producto(session: Session, id_producto: int) -> Decimal:

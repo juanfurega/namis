@@ -18,6 +18,7 @@ from namis.services.costos import (
     actualizar_costos_en_cascada,
     calcular_costo_producto,
     costo_linea_insumo,
+    _calcular_costo_receta_base,
 )
 from namis.services.insumo_precios import obtener_precio_vigente_insumo
 from namis.utils.money import money
@@ -91,7 +92,7 @@ def agregar_producto_a_receta(
 ) -> Receta:
     """
     Incluye un producto ya existente (con su propia receta) como componente.
-    cantidad_necesaria = cuántas unidades de ese producto entran en uno del dueño.
+    cantidad_necesaria = cuántos gramos de ese producto entran en uno del dueño.
     """
     _asegurar_producto(session, id_producto)
     _asegurar_producto(session, id_producto_componente)
@@ -172,22 +173,28 @@ def obtener_receta(session: Session, id_producto: int) -> RecetaDetalle:
             assert linea.id_producto_componente is not None
             componente = session.get(Producto, linea.id_producto_componente)
             assert componente is not None
-            costo_unitario = calcular_costo_producto(session, linea.id_producto_componente)
-            costo_linea = money(linea.cantidad_necesaria * costo_unitario)
+            # Obtener el costo base del producto componente (sin ajuste final al tamaño)
+            costo_base_componente, _ = _calcular_costo_receta_base(session, linea.id_producto_componente)
+            # Calcular costo por gramo del producto componente
+            costo_por_gramo = costo_base_componente / Decimal(str(componente.tamano_g))
+            # Calcular costo de la línea basado en los gramos usados
+            costo_linea = money(linea.cantidad_necesaria * costo_por_gramo)
             lineas.append(
                 LineaRecetaDetalle(
                     id_receta=linea.id_receta,
                     tipo="producto",
                     id_componente=linea.id_producto_componente,
                     nombre_componente=componente.nombre_producto,
-                    unidad="unidad",
+                    unidad="g",
                     cantidad_necesaria=linea.cantidad_necesaria,
-                    costo_unitario_componente=costo_unitario,
+                    costo_unitario_componente=costo_por_gramo,
                     costo_linea=costo_linea,
                 )
             )
 
+    # Calcular el costo total de la receta como la suma de los costos de las líneas
     costo_total = money(sum((ln.costo_linea for ln in lineas), Decimal("0.00")))
+    
     return RecetaDetalle(
         id_producto=producto.id_producto,
         nombre_producto=producto.nombre_producto,

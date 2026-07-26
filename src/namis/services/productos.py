@@ -14,8 +14,8 @@ def crear_producto(
     session: Session,
     nombre_producto: str,
     precio_actual: Decimal,
+    tamano_g: int,
     *,
-    tamano_g: int | None = None,
     es_endulzado: bool | None = None,
     costo_actual: Decimal | None = None,
 ) -> Producto:
