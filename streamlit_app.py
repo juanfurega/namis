@@ -330,6 +330,23 @@ with tab2:
                 if producto_seleccionado:
                     id_producto = opciones_productos[producto_seleccionado]
                     
+                    # Obtener producto actual
+                    producto = session.get(Producto, id_producto)
+                    
+                    # Casilla para marcar producto como "a la venta"
+                    a_la_venta = st.checkbox(
+                        "Producto a la venta",
+                        value=producto.a_la_venta if producto else False,
+                        key=f"a_la_venta_{id_producto}"
+                    )
+                    
+                    # Actualizar el estado si cambió
+                    if a_la_venta != producto.a_la_venta:
+                        producto.a_la_venta = a_la_venta
+                        session.commit()
+                        st.success("✅ Estado de venta actualizado")
+                        st.rerun()
+                    
                     # Mostrar receta actual
                     try:
                         receta = obtener_receta(session, id_producto)
@@ -588,10 +605,11 @@ with tab3:
         from decimal import Decimal
         from datetime import datetime
         
-        # Obtener todos los productos activos
+        # Obtener todos los productos activos y a la venta
         productos_activos = session.scalars(
             select(Producto)
             .where(Producto.activo.is_(True))
+            .where(Producto.a_la_venta.is_(True))
             .order_by(Producto.nombre_producto)
         ).all()
         
@@ -876,10 +894,11 @@ with tab4:
         from sqlalchemy import select, delete
         from decimal import Decimal
         
-        # Obtener todos los productos activos para usar en promociones
+        # Obtener todos los productos activos y a la venta para usar en promociones
         productos_activos = session.scalars(
             select(Producto)
             .where(Producto.activo.is_(True))
+            .where(Producto.a_la_venta.is_(True))
             .order_by(Producto.nombre_producto)
         ).all()
         

@@ -24,6 +24,7 @@ class Producto(Base):
     precio_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     costo_actual: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    a_la_venta: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     detalles_venta: Mapped[list[DetalleVenta]] = relationship(back_populates="producto")
     recetas: Mapped[list[Receta]] = relationship(
