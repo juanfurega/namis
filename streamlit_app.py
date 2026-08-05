@@ -259,7 +259,7 @@ with tab2:
         st.divider()
         
         # Crear producto
-        st.subheader("➕ Crear Producto")
+        st.subheader("➕ Crear Producto/Receta")
         
         try:
             col1, col2, col3 = st.columns(3)
