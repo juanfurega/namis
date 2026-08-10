@@ -42,7 +42,7 @@ Esta separación busca que la lógica de negocio no dependa de Streamlit, facili
 
 1. Clonar el repositorio:
    ```bash
-   git clone https://github.com/tu-usuario/namis.git
+   git clone https://github.com/juanfurega/namis.git
    cd namis
    ```
 2. Copiar el archivo de variables de entorno:
