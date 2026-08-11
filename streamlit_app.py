@@ -926,7 +926,7 @@ with tab4:
             )
             descuento_porcentaje = st.number_input(
                 "Porcentaje de descuento *",
-                min_value=1,
+                min_value=0.01,
                 max_value=100,
                 step=0.01,
                 value=st.session_state.promo_descuento,
