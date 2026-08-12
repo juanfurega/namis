@@ -926,10 +926,10 @@ with tab4:
             )
             descuento_porcentaje = st.number_input(
                 "Porcentaje de descuento *",
-                min_value=1,
-                max_value=100,
-                step=1,
-                value=st.session_state.promo_descuento,
+                min_value=0.1,
+                max_value=100.0,
+                step=0.1,
+                value=float(st.session_state.promo_descuento),
                 key="promo_descuento_input"
             )
             activa = st.checkbox("Promoción activa", value=st.session_state.promo_activa, key="promo_activa_input")
@@ -1012,7 +1012,7 @@ with tab4:
                         crear_promocion(
                             session,
                             nombre_promocion,
-                            Decimal(str(descuento_porcentaje)),
+                            Decimal(str(round(descuento_porcentaje, 2))),
                             requisitos,
                             activa=activa
                         )
@@ -1020,7 +1020,7 @@ with tab4:
                         st.success(f"✅ Promoción '{nombre_promocion}' creada exitosamente.")
                         # Limpiar session state
                         st.session_state.promo_nombre = ""
-                        st.session_state.promo_descuento = 10
+                        st.session_state.promo_descuento = 10.0
                         st.session_state.promo_activa = True
                         st.session_state.promo_productos = {}
                         st.rerun()
