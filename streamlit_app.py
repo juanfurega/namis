@@ -911,12 +911,16 @@ with tab4:
             # Inicializar session state si no existe
             if "promo_nombre" not in st.session_state:
                 st.session_state.promo_nombre = ""
-            if "promo_descuento" not in st.session_state:
-                st.session_state.promo_descuento = 10
+            if "promo_monto_descuento" not in st.session_state:
+                st.session_state.promo_monto_descuento = 0.0
             if "promo_activa" not in st.session_state:
                 st.session_state.promo_activa = True
             if "promo_productos" not in st.session_state:
                 st.session_state.promo_productos = {}
+
+            # El valor del widget solo puede restablecerse antes de crearlo.
+            if st.session_state.pop("promo_reset_monto_descuento", False):
+                st.session_state.promo_monto_descuento_input = 0.0
             
             # Campos fuera del formulario para evitar envío con Enter
             nombre_promocion = st.text_input(
@@ -924,19 +928,10 @@ with tab4:
                 value=st.session_state.promo_nombre,
                 key="promo_nombre_input"
             )
-            descuento_porcentaje = st.number_input(
-                "Porcentaje de descuento *",
-                min_value=0.1,
-                max_value=100.0,
-                step=0.1,
-                value=float(st.session_state.promo_descuento),
-                key="promo_descuento_input"
-            )
             activa = st.checkbox("Promoción activa", value=st.session_state.promo_activa, key="promo_activa_input")
             
             # Actualizar session state
             st.session_state.promo_nombre = nombre_promocion
-            st.session_state.promo_descuento = descuento_porcentaje
             st.session_state.promo_activa = activa
             
             # Productos requeridos en un expander
@@ -975,27 +970,53 @@ with tab4:
                         )
                     elif producto.id_producto in st.session_state.promo_productos:
                         del st.session_state.promo_productos[producto.id_producto]
+
+            subtotal = Decimal("0.00")
+            for req in requisitos:
+                producto = session.get(Producto, req.id_producto)
+                if producto:
+                    subtotal += producto.precio_actual * req.cantidad_requerida
+
+            monto_descuento = st.number_input(
+                "Monto a descontar ($) *",
+                min_value=0.0,
+                value=float(st.session_state.promo_monto_descuento),
+                step=0.01,
+                format="%.2f",
+                key="promo_monto_descuento_input",
+                disabled=not requisitos,
+                help="El monto se descuenta de un set completo de los productos seleccionados.",
+            )
+            st.session_state.promo_monto_descuento = monto_descuento
+
+            monto_descuento_decimal = Decimal(str(monto_descuento))
+            descuento_porcentaje = (
+                (monto_descuento_decimal / subtotal * Decimal("100"))
+                if subtotal > 0
+                else Decimal("0.00")
+            )
+
+            if requisitos:
+                st.caption(
+                    f"Descuento equivalente: {descuento_porcentaje:.2f}% "
+                    f"sobre el subtotal del combo (${subtotal:.2f})."
+                )
+                if monto_descuento_decimal > subtotal:
+                    st.warning("El monto ingresado supera el subtotal del combo.")
             
             # Vista previa del descuento en tiempo real (fuera del formulario)
-            if requisitos and descuento_porcentaje > 0:
+            if requisitos and 0 < monto_descuento_decimal <= subtotal:
                 st.divider()
                 st.write("### Vista previa del descuento")
                 
-                # Calcular subtotal de productos requeridos
-                subtotal = Decimal("0.00")
-                for req in requisitos:
-                    producto = session.get(Producto, req.id_producto)
-                    if producto:
-                        subtotal += producto.precio_actual * req.cantidad_requerida
-                
-                monto_descontado = subtotal * Decimal(str(descuento_porcentaje)) / Decimal("100")
+                monto_descontado = monto_descuento_decimal
                 total_con_descuento = subtotal - monto_descontado
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Subtotal", f"${subtotal:.2f}")
                 with col2:
-                    st.metric("Descuento", f"-${monto_descontado:.2f}", delta=f"-{descuento_porcentaje}%")
+                    st.metric("Descuento", f"-${monto_descontado:.2f}", delta=f"-{descuento_porcentaje:.2f}%")
                 with col3:
                     st.metric("Total con descuento", f"${total_con_descuento:.2f}")
             
@@ -1005,14 +1026,16 @@ with tab4:
                     st.error("El nombre de la promoción es obligatorio.")
                 elif not requisitos:
                     st.error("Debes seleccionar al menos un producto para la promoción.")
-                elif descuento_porcentaje <= 0:
-                    st.error("El porcentaje de descuento debe ser mayor a 0.")
+                elif monto_descuento_decimal <= 0:
+                    st.error("El monto de descuento debe ser mayor a $0.")
+                elif monto_descuento_decimal > subtotal:
+                    st.error("El monto de descuento no puede superar el subtotal del combo.")
                 else:
                     try:
                         crear_promocion(
                             session,
                             nombre_promocion,
-                            Decimal(str(round(descuento_porcentaje, 2))),
+                            descuento_porcentaje.quantize(Decimal("0.01")),
                             requisitos,
                             activa=activa
                         )
@@ -1020,7 +1043,8 @@ with tab4:
                         st.success(f"✅ Promoción '{nombre_promocion}' creada exitosamente.")
                         # Limpiar session state
                         st.session_state.promo_nombre = ""
-                        st.session_state.promo_descuento = 10.0
+                        st.session_state.promo_monto_descuento = 0.0
+                        st.session_state.promo_reset_monto_descuento = True
                         st.session_state.promo_activa = True
                         st.session_state.promo_productos = {}
                         st.rerun()
