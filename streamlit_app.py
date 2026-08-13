@@ -323,7 +323,7 @@ with tab2:
                 opciones_productos = {f"{p.id_producto} - {p.nombre_producto}": p.id_producto for p in productos}
                 producto_seleccionado = st.selectbox(
                     "Seleccionar Receta",
-                    options=list(opciones_productos.keys()),
+                    options=[""] + list(opciones_productos.keys()),
                     key="select_producto_receta"
                 )
                 
