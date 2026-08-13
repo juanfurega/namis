@@ -942,6 +942,7 @@ with tab4:
         from namis.models.promocion import Promocion
         from namis.models.promocion_requisito import PromocionRequisito
         from namis.schemas.promociones import RequisitoPromocionInput
+        from namis.utils.money import money
         from sqlalchemy import select, delete
         from decimal import Decimal
         
@@ -1117,12 +1118,22 @@ with tab4:
                 st.info("No hay promociones registradas.")
             else:
                 for promo in promociones:
+                    subtotal_combo = Decimal("0.00")
+                    for req in promo.requisitos:
+                        producto = session.get(Producto, req.id_producto)
+                        if producto:
+                            subtotal_combo += producto.precio_actual * req.cantidad_requerida
+                    monto_descuento_combo = money(
+                        subtotal_combo * promo.descuento_porcentaje / Decimal("100")
+                    )
+
                     with st.expander(f"🏷️ {promo.nombre_promocion} - {promo.descuento_porcentaje}% {'(Activa)' if promo.activa else '(Inactiva)'}"):
                         col1, col2, col3 = st.columns([2, 1, 1])
                         
                         with col1:
                             st.write(f"**ID:** {promo.id_promocion}")
                             st.write(f"**Descuento:** {promo.descuento_porcentaje}%")
+                            st.write(f"**Monto de descuento por combo:** ${monto_descuento_combo:,.2f}")
                             st.write(f"**Estado:** {'✅ Activa' if promo.activa else '❌ Inactiva'}")
                         
                         with col2:
