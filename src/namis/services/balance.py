@@ -65,6 +65,8 @@ def _a_historial(venta: Venta) -> VentaHistorialDetalle:
         id_cliente=venta.id_cliente,
         fecha=venta.fecha or datetime.now(),
         medio_pago=venta.medio_pago,
+        monto_efectivo=money(venta.monto_efectivo or Decimal("0.00")),
+        monto_transferencia=money(venta.monto_transferencia or Decimal("0.00")),
         red_social=venta.red_social,
         nombre_promocion=promo.nombre_promocion if promo else None,
         descuento_porcentaje=promo.descuento_porcentaje if promo else None,
@@ -182,15 +184,15 @@ def obtener_resumen_dia(session: Session, fecha: date) -> ResumenDia:
         total_cobrado += cobrado
         total_ganancia += ganancia
         
-        medio = v.medio_pago or "Sin especificar"
-        if medio not in por_medio_pago:
-            por_medio_pago[medio] = (0, Decimal("0.00"), Decimal("0.00"))
-        cantidad, cobrado_medio, ganancia_medio = por_medio_pago[medio]
-        por_medio_pago[medio] = (
-            cantidad + 1,
-            cobrado_medio + cobrado,
-            ganancia_medio + ganancia
-        )
+        for medio, importe, ganancia_medio in _pagos_para_balance(v, cobrado, ganancia):
+            if medio not in por_medio_pago:
+                por_medio_pago[medio] = (0, Decimal("0.00"), Decimal("0.00"))
+            cantidad, cobrado_medio, ganancia_acumulada = por_medio_pago[medio]
+            por_medio_pago[medio] = (
+                cantidad + 1,
+                cobrado_medio + importe,
+                ganancia_acumulada + ganancia_medio,
+            )
     
     # Crear lista de balance por medio de pago
     balance_medio_pago = [
@@ -210,6 +212,34 @@ def obtener_resumen_dia(session: Session, fecha: date) -> ResumenDia:
         total_ganancia=money(total_ganancia),
         por_medio_pago=balance_medio_pago,
     )
+
+
+def _pagos_para_balance(
+    venta: Venta,
+    total_cobrado: Decimal,
+    ganancia: Decimal,
+) -> list[tuple[str, Decimal, Decimal]]:
+    """Desglosa cobrado y ganancia proporcionalmente por medio de pago."""
+    efectivo = money(venta.monto_efectivo or Decimal("0.00"))
+    transferencia = money(venta.monto_transferencia or Decimal("0.00"))
+
+    # Compatibilidad con ventas anteriores a los importes por medio de pago.
+    if efectivo == 0 and transferencia == 0:
+        if venta.medio_pago == "efectivo":
+            efectivo = total_cobrado
+        elif venta.medio_pago == "transferencia":
+            transferencia = total_cobrado
+        else:
+            return [(venta.medio_pago or "Sin especificar", total_cobrado, ganancia)]
+
+    pagos: list[tuple[str, Decimal, Decimal]] = []
+    if efectivo > 0:
+        ganancia_efectivo = money(ganancia * efectivo / total_cobrado) if total_cobrado else Decimal("0.00")
+        pagos.append(("efectivo", efectivo, ganancia_efectivo))
+    if transferencia > 0:
+        ganancia_transferencia = money(ganancia - sum((p[2] for p in pagos), Decimal("0.00")))
+        pagos.append(("transferencia", transferencia, ganancia_transferencia))
+    return pagos
 
 
 def obtener_resumen_mes_calendario(

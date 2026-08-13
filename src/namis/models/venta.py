@@ -23,6 +23,12 @@ class Venta(Base):
     id_cliente: Mapped[int] = mapped_column(Integer, ForeignKey("clientes.id_cliente"), nullable=False)
     fecha: Mapped[datetime | None] = mapped_column(DateTime, server_default=func.now())
     medio_pago: Mapped[str | None] = mapped_column(String(50))
+    monto_efectivo: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False, default=Decimal("0.00")
+    )
+    monto_transferencia: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False, default=Decimal("0.00")
+    )
     red_social: Mapped[str | None] = mapped_column(String(50))
     requiere_envio: Mapped[bool | None] = mapped_column(Boolean, default=False)
     costo_envio: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))

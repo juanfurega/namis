@@ -589,12 +589,15 @@ with tab3:
     # Carrito de productos
     if "carrito_venta" not in st.session_state:
         st.session_state.carrito_venta = []
+    if not st.session_state.carrito_venta:
+        st.session_state.pop("monto_efectivo_venta", None)
     
     # Formulario para registrar venta
     
     with session_scope() as session:
         from namis.services import (
             actualizar_estado_deudor,
+            calcular_presupuesto_venta,
             registrar_venta,
             listar_ultimas_ventas,
             ItemVentaInput,
@@ -612,10 +615,9 @@ with tab3:
             .where(Producto.a_la_venta.is_(True))
             .order_by(Producto.nombre_producto)
         ).all()
-        
+
         with st.form("form_venta"):
             col1, col2 = st.columns(2)
-            
             with col1:
                 nombre_cliente = st.text_input("Nombre del cliente *")
                 medio_comunicacion = st.selectbox(
@@ -623,19 +625,19 @@ with tab3:
                     options=["", "Wsp", "Ig", "Msn"],
                     key="medio_comunicacion"
                 )
-            
             with col2:
                 medio_pago = st.selectbox(
                     "Medio de pago",
-                    options=["", "Transferencia", "Efectivo"],
-                    key="medio_pago"
+                    options=["", "Transferencia", "Efectivo", "Pago dividido"],
+                    key="medio_pago",
                 )
                 costo_envio = st.number_input(
                     "Costo de envío",
                     min_value=0.0,
                     step=0.01,
                     format="%.2f",
-                    value=0.0
+                    value=0.0,
+                    key="costo_envio_venta",
                 )
             
             if productos_activos:
@@ -673,6 +675,41 @@ with tab3:
             else:
                 st.warning("No hay productos con receta disponibles. Primero cree productos con recetas.")
             
+            total_a_pagar = None
+            if st.session_state.carrito_venta:
+                try:
+                    items_para_pago = [
+                        ItemVentaInput(id_producto=item["id_producto"], cantidad=item["cantidad"])
+                        for item in st.session_state.carrito_venta
+                    ]
+                    total_a_pagar = calcular_presupuesto_venta(
+                        session,
+                        items_para_pago,
+                        costo_envio=Decimal(str(costo_envio)),
+                    ).total_cobrado
+                except Exception as e:
+                    st.warning(f"No se pudo calcular el total del pago: {e}")
+
+            monto_efectivo = None
+            if medio_pago == "Pago dividido":
+                if total_a_pagar is None:
+                    st.info("Agrega productos al carrito para calcular el pago dividido.")
+                else:
+                    monto_efectivo = st.number_input(
+                        "Pago en efectivo",
+                        min_value=0.0,
+                        max_value=float(total_a_pagar),
+                        step=0.01,
+                        format="%.2f",
+                        key="monto_efectivo_venta",
+                    )
+                    monto_transferencia = total_a_pagar - Decimal(str(monto_efectivo))
+                    col_efectivo, col_transferencia = st.columns(2)
+                    with col_efectivo:
+                        st.metric("Efectivo", f"${monto_efectivo:.2f}")
+                    with col_transferencia:
+                        st.metric("Transferencia", f"${monto_transferencia:.2f}")
+
             observaciones = st.text_area("Observaciones (opcional)", key="observaciones_venta")
             
             submitted = st.form_submit_button("Registrar Venta")
@@ -696,7 +733,15 @@ with tab3:
                             session,
                             nombre_cliente=nombre_cliente,
                             items=items,
-                            medio_pago=medio_pago.lower() if medio_pago else None,
+                            medio_pago=(
+                                "dividido" if medio_pago == "Pago dividido"
+                                else medio_pago.lower() if medio_pago else None
+                            ),
+                            monto_efectivo=(
+                                Decimal(str(monto_efectivo))
+                                if medio_pago == "Pago dividido" and monto_efectivo is not None
+                                else None
+                            ),
                             red_social=medio_comunicacion.lower() if medio_comunicacion else None,
                             costo_envio=Decimal(str(costo_envio)),
                             observaciones=observaciones if observaciones else None,
@@ -753,7 +798,13 @@ with tab3:
                     )
                     
                     promocion_str = f"${venta.monto_descontado}" if venta.monto_descontado > 0 else "No"
-                    medio_pago_str = venta.medio_pago.capitalize() if venta.medio_pago else "N/A"
+                    if venta.medio_pago == "dividido":
+                        medio_pago_str = (
+                            f"Dividido (Efectivo ${venta.monto_efectivo:.2f} / "
+                            f"Transferencia ${venta.monto_transferencia:.2f})"
+                        )
+                    else:
+                        medio_pago_str = venta.medio_pago.capitalize() if venta.medio_pago else "N/A"
                     medio_com_str = venta.red_social.upper() if venta.red_social else "N/A"
                     envio_str = f"${venta.costo_envio}" if venta.costo_envio > 0 else "$0"
                     deudor_str = "✅" if venta.es_deudor else ""
@@ -1118,6 +1169,9 @@ with tab4:
             st.error(traceback.format_exc())
 
 with tab5:
+
+    def formato_moneda(valor):
+        return f"${valor:,.2f}"
     
     with session_scope() as session:
         from namis.services import obtener_resumen_dia, obtener_resumen_mes_calendario, listar_historial_dia_por_cliente
@@ -1149,9 +1203,9 @@ with tab5:
             with col1:
                 st.metric("Ventas", resumen_dia.cantidad_ventas)
             with col2:
-                st.metric("Total cobrado", f"${resumen_dia.total_cobrado:.2f}")
+                st.metric("Total cobrado", formato_moneda(resumen_dia.total_cobrado))
             with col3:
-                st.metric("Ganancia total", f"${resumen_dia.total_ganancia:.2f}")
+                st.metric("Ganancia total", formato_moneda(resumen_dia.total_ganancia))
             
             # Mostrar balance por medio de pago
             if resumen_dia.por_medio_pago:
@@ -1164,9 +1218,9 @@ with tab5:
                         with col1:
                             st.metric("Ventas", balance.cantidad_ventas)
                         with col2:
-                            st.metric("Total cobrado", f"${balance.total_cobrado:.2f}")
+                            st.metric("Total cobrado", formato_moneda(balance.total_cobrado))
                         with col3:
-                            st.metric("Ganancia", f"${balance.total_ganancia:.2f}")
+                            st.metric("Ganancia", formato_moneda(balance.total_ganancia))
             
             # Mostrar detalle de ventas del día
             if resumen_dia.cantidad_ventas > 0:
@@ -1179,28 +1233,28 @@ with tab5:
                     with st.expander(f"👤 {cliente.nombre_cliente}"):
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.metric("Total cobrado", f"${cliente.total_cobrado:.2f}")
+                            st.metric("Total cobrado", formato_moneda(cliente.total_cobrado))
                         with col2:
-                            st.metric("Ganancia", f"${cliente.total_ganancia:.2f}")
+                            st.metric("Ganancia", formato_moneda(cliente.total_ganancia))
                         
                         for venta in cliente.ventas:
                             st.write(f"**Venta #{venta.id_venta}** - {venta.fecha.strftime('%H:%M')}")
                             st.write(f"Medio de pago: {venta.medio_pago or 'Sin especificar'}")
                             if venta.nombre_promocion:
-                                st.write(f"Promoción: {venta.nombre_promocion} (-{venta.descuento_porcentaje}% = -${venta.monto_descontado:.2f})")
+                                st.write(f"Promoción: {venta.nombre_promocion} (-{venta.descuento_porcentaje}% = -{formato_moneda(venta.monto_descontado)})")
                             
                             st.write("**Productos:**")
                             for linea in venta.lineas:
-                                st.write(f"• {linea.nombre_producto} x{linea.cantidad} - ${linea.subtotal_cobrado:.2f}")
-                                st.write(f"  Costo: ${linea.subtotal_costo:.2f}")
+                                st.write(f"• {linea.nombre_producto} x{linea.cantidad} - {formato_moneda(linea.subtotal_cobrado)}")
+                                st.write(f"  Costo: {formato_moneda(linea.subtotal_costo)}")
                             
                             col1, col2, col3 = st.columns(3)
                             with col1:
-                                st.metric("Total cobrado", f"${venta.total_cobrado:.2f}")
+                                st.metric("Total cobrado", formato_moneda(venta.total_cobrado))
                             with col2:
-                                st.metric("Costo productos", f"${venta.costo_productos:.2f}")
+                                st.metric("Costo productos", formato_moneda(venta.costo_productos))
                             with col3:
-                                st.metric("Ganancia", f"${venta.ganancia:.2f}")
+                                st.metric("Ganancia", formato_moneda(venta.ganancia))
                             st.divider()
             else:
                 st.info("No hay ventas registradas para esta fecha.")
@@ -1223,9 +1277,9 @@ with tab5:
             with col1:
                 st.metric("Ventas totales", resumen_mes.cantidad_ventas)
             with col2:
-                st.metric("Total cobrado", f"${resumen_mes.total_cobrado:.2f}")
+                st.metric("Total cobrado", formato_moneda(resumen_mes.total_cobrado))
             with col3:
-                st.metric("Ganancia total", f"${resumen_mes.total_ganancia:.2f}")
+                st.metric("Ganancia total", formato_moneda(resumen_mes.total_ganancia))
             
             # Selector de día específico para ver detalle
             st.divider()
@@ -1233,7 +1287,7 @@ with tab5:
             
             dias_con_ventas = [d for d in resumen_mes.dias if d.tiene_ventas]
             if dias_con_ventas:
-                opciones_dias = [f"{d.fecha.day} de {calendar.month_name[mes]} (${d.total_ganancia:.2f})" for d in dias_con_ventas]
+                opciones_dias = [f"{d.fecha.day} de {calendar.month_name[mes]} ({formato_moneda(d.total_ganancia)})" for d in dias_con_ventas]
                 dia_seleccionado_idx = st.selectbox("Seleccionar día", range(len(opciones_dias)), format_func=lambda i: opciones_dias[i])
                 dia_seleccionado = dias_con_ventas[dia_seleccionado_idx]
                 
@@ -1255,27 +1309,27 @@ with tab5:
                     for balance in resumen_detalle.por_medio_pago:
                         col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric(balance.medio_pago, f"${balance.total_cobrado:.2f}")
+                            st.metric(balance.medio_pago, formato_moneda(balance.total_cobrado))
                         with col2:
                             st.metric("Ventas", balance.cantidad_ventas)
                         with col3:
-                            st.metric("Ganancia", f"${balance.total_ganancia:.2f}")
+                            st.metric("Ganancia", formato_moneda(balance.total_ganancia))
                 
                 # Ventas del día
                 for cliente in historial_detalle.clientes:
                     with st.expander(f"👤 {cliente.nombre_cliente}"):
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.metric("Total cobrado", f"${cliente.total_cobrado:.2f}")
+                            st.metric("Total cobrado", formato_moneda(cliente.total_cobrado))
                         with col2:
-                            st.metric("Ganancia", f"${cliente.total_ganancia:.2f}")
+                            st.metric("Ganancia", formato_moneda(cliente.total_ganancia))
                         
                         for venta in cliente.ventas:
                             st.write(f"**Venta #{venta.id_venta}** - {venta.fecha.strftime('%H:%M')}")
                             st.write(f"Medio de pago: {venta.medio_pago or 'Sin especificar'}")
                             for linea in venta.lineas:
-                                st.write(f"• {linea.nombre_producto} x{linea.cantidad} - ${linea.subtotal_cobrado:.2f}")
-                            st.write(f"Total: ${venta.total_cobrado:.2f} | Ganancia: ${venta.ganancia:.2f}")
+                                st.write(f"• {linea.nombre_producto} x{linea.cantidad} - {formato_moneda(linea.subtotal_cobrado)}")
+                            st.write(f"Total: {formato_moneda(venta.total_cobrado)} | Ganancia: {formato_moneda(venta.ganancia)}")
                 
                 if st.button("Cerrar detalle", key="cerrar_detalle"):
                     del st.session_state.balance_fecha_detalle

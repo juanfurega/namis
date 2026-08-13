@@ -80,6 +80,7 @@ def registrar_venta(
     nombre_cliente: str,
     items: list[ItemVentaInput],
     medio_pago: str | None = None,
+    monto_efectivo: Decimal | None = None,
     red_social: str | None = None,
     costo_envio: Decimal = Decimal("0.00"),
     fecha: datetime | None = None,
@@ -90,7 +91,9 @@ def registrar_venta(
     Registra una venta con uno o más productos.
 
     - red_social: medio de comunicación informativo (wsp / ig / msn).
-    - medio_pago: informativo (efectivo / transferencia).
+    - medio_pago: efectivo, transferencia o dividido.
+    - monto_efectivo: obligatorio para un pago dividido; la transferencia
+      se calcula automáticamente como el importe restante.
     - costo_envio: lo fija el usuario a mano; 0 = sin envío.
     - La promoción se detecta y aplica automáticamente si el carrito califica.
     """
@@ -114,12 +117,19 @@ def registrar_venta(
         items,
         costo_envio=costo_envio,
     )
+    efectivo, transferencia = _calcular_montos_pago(
+        medio_pago,
+        monto_efectivo,
+        presupuesto.total_cobrado,
+    )
     cliente = obtener_o_crear_cliente(session, nombre_cliente)
 
     venta = Venta(
         id_cliente=cliente.id_cliente,
         fecha=fecha if fecha is not None else datetime.now(),
         medio_pago=medio_pago,
+        monto_efectivo=efectivo,
+        monto_transferencia=transferencia,
         red_social=red_social,
         requiere_envio=presupuesto.costo_envio > 0,
         costo_envio=presupuesto.costo_envio,
@@ -150,6 +160,8 @@ def registrar_venta(
         nombre_cliente=cliente.nombre,
         fecha=venta.fecha or datetime.now(),
         medio_pago=venta.medio_pago,
+        monto_efectivo=efectivo,
+        monto_transferencia=transferencia,
         red_social=venta.red_social,
         costo_envio=presupuesto.costo_envio,
         monto_descontado=presupuesto.monto_descontado,
@@ -157,6 +169,30 @@ def registrar_venta(
         promocion=presupuesto.promocion,
         lineas=presupuesto.lineas,
     )
+
+
+def _calcular_montos_pago(
+    medio_pago: str | None,
+    monto_efectivo: Decimal | None,
+    total_cobrado: Decimal,
+) -> tuple[Decimal, Decimal]:
+    """Obtiene los importes cobrados por cada medio de pago."""
+    if medio_pago == "efectivo":
+        return total_cobrado, Decimal("0.00")
+    if medio_pago == "transferencia":
+        return Decimal("0.00"), total_cobrado
+    if medio_pago == "dividido":
+        if monto_efectivo is None:
+            raise VentaInvalidaError(
+                "Debe indicar el importe abonado en efectivo para el pago dividido."
+            )
+        efectivo = money(Decimal(monto_efectivo))
+        if efectivo < 0 or efectivo > total_cobrado:
+            raise VentaInvalidaError(
+                "El importe en efectivo debe estar entre $0 y el total de la venta."
+            )
+        return efectivo, money(total_cobrado - efectivo)
+    return Decimal("0.00"), Decimal("0.00")
 
 
 def listar_ultimas_ventas(session: Session, limite: int = 20) -> list[Venta]:

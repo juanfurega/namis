@@ -42,6 +42,8 @@ class VentaRegistrada:
     nombre_cliente: str
     fecha: datetime
     medio_pago: str | None
+    monto_efectivo: Decimal
+    monto_transferencia: Decimal
     red_social: str | None
     costo_envio: Decimal
     monto_descontado: Decimal
@@ -52,4 +54,4 @@ class VentaRegistrada:
 
 # Valores informativos permitidos (la UI puede mostrar estos)
 MEDIOS_COMUNICACION = frozenset({"wsp", "ig", "msn"})
-MEDIOS_PAGO = frozenset({"efectivo", "transferencia"})
+MEDIOS_PAGO = frozenset({"efectivo", "transferencia", "dividido"})

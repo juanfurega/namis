@@ -21,6 +21,8 @@ class VentaHistorialDetalle:
     id_cliente: int
     fecha: datetime
     medio_pago: str | None
+    monto_efectivo: Decimal
+    monto_transferencia: Decimal
     red_social: str | None
     nombre_promocion: str | None
     descuento_porcentaje: Decimal | None

@@ -36,6 +36,8 @@ CREATE TABLE ventas (
     id_cliente INT NOT NULL,
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
     medio_pago VARCHAR(50), -- 'Transferencia', 'Efectivo', etc.
+    monto_efectivo DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    monto_transferencia DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     red_social VARCHAR(50), -- Medio de comunicación informativo: 'wsp', 'ig', 'msn'
     requiere_envio BOOLEAN DEFAULT FALSE,
     costo_envio DECIMAL(10, 2) DEFAULT 0.00,
