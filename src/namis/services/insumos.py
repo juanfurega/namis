@@ -18,6 +18,7 @@ from namis.schemas.insumos import (
 )
 from namis.services.costos import actualizar_costos_en_cascada, actualizar_costos_productos_afectados_por_insumo
 from namis.services.insumo_precios import obtener_precio_vigente_insumo
+from namis.utils.timezone import ahora_argentina
 
 __all__ = [
     "crear_insumo",
@@ -90,6 +91,7 @@ def registrar_compra_insumo(
         id_insumo=id_insumo,
         cantidad_paquete=cantidad,
         precio_paquete=precio_pagado,
+        fecha_registro=ahora_argentina(),
     )
     session.add(historial)
     session.flush()

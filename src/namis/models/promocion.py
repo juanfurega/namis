@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 class Promocion(Base):
     __tablename__ = "promociones"
+    __table_args__ = {"extend_existing": True}
 
     id_promocion: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nombre_promocion: Mapped[str] = mapped_column(String(50), nullable=False)

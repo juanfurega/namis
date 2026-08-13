@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 import streamlit as st
 from namis.database import session_scope
+from namis.utils.timezone import hoy_argentina
 
 st.set_page_config(
     page_title="Namis",
@@ -1202,7 +1203,7 @@ with tab5:
             # Selector de fecha
             fecha_seleccionada = st.date_input(
                 "Seleccionar fecha",
-                value=date.today(),
+                value=hoy_argentina(),
                 key="balance_fecha"
             )
             
@@ -1276,9 +1277,9 @@ with tab5:
             # Selector de mes y año
             col1, col2 = st.columns(2)
             with col1:
-                anio = st.number_input("Año", min_value=2020, max_value=2030, value=date.today().year, key="balance_anio")
+                anio = st.number_input("Año", min_value=2020, max_value=2030, value=hoy_argentina().year, key="balance_anio")
             with col2:
-                mes = st.number_input("Mes", min_value=1, max_value=12, value=date.today().month, key="balance_mes")
+                mes = st.number_input("Mes", min_value=1, max_value=12, value=hoy_argentina().month, key="balance_mes")
             
             # Obtener resumen del mes
             resumen_mes = obtener_resumen_mes_calendario(session, anio, mes)

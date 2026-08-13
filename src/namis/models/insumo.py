@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 class Insumo(Base):
     __tablename__ = "insumos"
+    __table_args__ = {"extend_existing": True}
 
     id_insumo: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nombre_insumo: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)

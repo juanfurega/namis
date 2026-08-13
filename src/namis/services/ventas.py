@@ -19,6 +19,7 @@ from namis.schemas.ventas import (
 from namis.services.clientes import obtener_o_crear_cliente
 from namis.services.promociones import evaluar_promocion_aplicable
 from namis.utils.money import money
+from namis.utils.timezone import ahora_argentina
 
 
 def calcular_presupuesto_venta(
@@ -126,7 +127,7 @@ def registrar_venta(
 
     venta = Venta(
         id_cliente=cliente.id_cliente,
-        fecha=fecha if fecha is not None else datetime.now(),
+        fecha=fecha if fecha is not None else ahora_argentina(),
         medio_pago=medio_pago,
         monto_efectivo=efectivo,
         monto_transferencia=transferencia,
@@ -158,7 +159,7 @@ def registrar_venta(
         id_venta=venta.id_venta,
         id_cliente=cliente.id_cliente,
         nombre_cliente=cliente.nombre,
-        fecha=venta.fecha or datetime.now(),
+        fecha=venta.fecha or ahora_argentina(),
         medio_pago=venta.medio_pago,
         monto_efectivo=efectivo,
         monto_transferencia=transferencia,

@@ -16,6 +16,7 @@ class PromocionRequisito(Base):
     __tablename__ = "promocion_requisitos"
     __table_args__ = (
         UniqueConstraint("id_promocion", "id_producto", name="uq_promo_producto"),
+        {"extend_existing": True},
     )
 
     id_requisito: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

@@ -22,6 +22,7 @@ from namis.schemas.balance import (
     VentaHistorialDetalle,
 )
 from namis.utils.money import money
+from namis.utils.timezone import ahora_argentina
 
 
 def _metricas_venta(venta: Venta) -> tuple[Decimal, Decimal, Decimal, Decimal]:
@@ -63,7 +64,7 @@ def _a_historial(venta: Venta) -> VentaHistorialDetalle:
     return VentaHistorialDetalle(
         id_venta=venta.id_venta,
         id_cliente=venta.id_cliente,
-        fecha=venta.fecha or datetime.now(),
+        fecha=venta.fecha or ahora_argentina(),
         medio_pago=venta.medio_pago,
         monto_efectivo=money(venta.monto_efectivo or Decimal("0.00")),
         monto_transferencia=money(venta.monto_transferencia or Decimal("0.00")),

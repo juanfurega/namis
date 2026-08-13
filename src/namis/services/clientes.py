@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from namis.models.cliente import Cliente
+from namis.utils.timezone import hoy_argentina
 
 
 def obtener_o_crear_cliente(session: Session, nombre: str) -> Cliente:
@@ -16,7 +17,7 @@ def obtener_o_crear_cliente(session: Session, nombre: str) -> Cliente:
     if existente is not None:
         return existente
 
-    cliente = Cliente(nombre=nombre_limpio)
+    cliente = Cliente(nombre=nombre_limpio, fecha_registro=hoy_argentina())
     session.add(cliente)
     session.flush()
     return cliente

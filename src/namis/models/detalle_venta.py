@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 class DetalleVenta(Base):
     __tablename__ = "detalle_ventas"
+    __table_args__ = {"extend_existing": True}
 
     id_detalle: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     id_venta: Mapped[int] = mapped_column(Integer, ForeignKey("ventas.id_venta", ondelete="CASCADE"), nullable=False)

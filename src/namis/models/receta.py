@@ -21,6 +21,7 @@ class Receta(Base):
             "OR (id_insumo IS NULL AND id_producto_componente IS NOT NULL)",
             name="chk_receta_linea",
         ),
+        {"extend_existing": True},
     )
 
     id_receta: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

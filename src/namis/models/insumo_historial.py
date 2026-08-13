@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 
 class InsumoHistorialPrecio(Base):
     __tablename__ = "insumos_historial_precios"
+    # Streamlit puede recargar módulos durante el desarrollo o despliegue.
+    # Evita que una segunda carga registre de nuevo esta tabla en el mismo metadata.
+    __table_args__ = {"extend_existing": True}
 
     id_historial: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     id_insumo: Mapped[int] = mapped_column(
