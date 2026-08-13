@@ -75,6 +75,7 @@ class ResumenDia:
     fecha: date
     cantidad_ventas: int
     total_cobrado: Decimal
+    total_envios: Decimal
     total_ganancia: Decimal
     por_medio_pago: list[BalancePorMedioPago]
 
@@ -93,5 +94,6 @@ class ResumenMesCalendario:
     mes: int
     dias: list[DiaCalendario]
     total_cobrado: Decimal
+    total_envios: Decimal
     total_ganancia: Decimal
     cantidad_ventas: int

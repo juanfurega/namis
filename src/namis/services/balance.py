@@ -40,7 +40,7 @@ def _metricas_venta(venta: Venta) -> tuple[Decimal, Decimal, Decimal, Decimal]:
     if venta.es_deudor:
         ganancia = Decimal("0.00")
     else:
-        ganancia = money(total_cobrado - costo_productos)
+        ganancia = money(subtotal_bruto - venta.monto_descontado - costo_productos)
     
     return subtotal_bruto, costo_productos, total_cobrado, ganancia
 
@@ -175,6 +175,7 @@ def listar_historial_dia_por_cliente(
 def obtener_resumen_dia(session: Session, fecha: date) -> ResumenDia:
     ventas = _ventas_en_rango(session, fecha, fecha)
     total_cobrado = Decimal("0.00")
+    total_envios = Decimal("0.00")
     total_ganancia = Decimal("0.00")
     
     # Agrupar por medio de pago
@@ -183,6 +184,7 @@ def obtener_resumen_dia(session: Session, fecha: date) -> ResumenDia:
     for v in ventas:
         _, _, cobrado, ganancia = _metricas_venta(v)
         total_cobrado += cobrado
+        total_envios += v.costo_envio or Decimal("0.00")
         total_ganancia += ganancia
         
         for medio, importe, ganancia_medio in _pagos_para_balance(v, cobrado, ganancia):
@@ -210,6 +212,7 @@ def obtener_resumen_dia(session: Session, fecha: date) -> ResumenDia:
         fecha=fecha,
         cantidad_ventas=len(ventas),
         total_cobrado=money(total_cobrado),
+        total_envios=money(total_envios),
         total_ganancia=money(total_ganancia),
         por_medio_pago=balance_medio_pago,
     )
@@ -263,6 +266,7 @@ def obtener_resumen_mes_calendario(
     ventas_por_dia: dict[date, int] = {}
 
     total_cobrado = Decimal("0.00")
+    total_envios = Decimal("0.00")
     total_ganancia = Decimal("0.00")
 
     for v in ventas:
@@ -273,6 +277,7 @@ def obtener_resumen_mes_calendario(
         ganancia_por_dia[dia] = ganancia_por_dia.get(dia, Decimal("0.00")) + ganancia
         ventas_por_dia[dia] = ventas_por_dia.get(dia, 0) + 1
         total_cobrado += cobrado
+        total_envios += v.costo_envio or Decimal("0.00")
         total_ganancia += ganancia
 
     dias: list[DiaCalendario] = []
@@ -294,6 +299,7 @@ def obtener_resumen_mes_calendario(
         mes=mes,
         dias=dias,
         total_cobrado=money(total_cobrado),
+        total_envios=money(total_envios),
         total_ganancia=money(total_ganancia),
         cantidad_ventas=len(ventas),
     )

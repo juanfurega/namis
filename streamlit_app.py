@@ -1209,14 +1209,17 @@ with tab5:
             
             # Obtener resumen del día
             resumen_dia = obtener_resumen_dia(session, fecha_seleccionada)
+            total_envios_dia = getattr(resumen_dia, "total_envios", 0)
             
             # Mostrar resumen general
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Ventas", resumen_dia.cantidad_ventas)
             with col2:
                 st.metric("Total cobrado", formato_moneda(resumen_dia.total_cobrado))
             with col3:
+                st.metric("Envíos", formato_moneda(total_envios_dia))
+            with col4:
                 st.metric("Ganancia total", formato_moneda(resumen_dia.total_ganancia))
             
             # Mostrar balance por medio de pago
@@ -1283,14 +1286,17 @@ with tab5:
             
             # Obtener resumen del mes
             resumen_mes = obtener_resumen_mes_calendario(session, anio, mes)
+            total_envios_mes = getattr(resumen_mes, "total_envios", 0)
             
             # Mostrar resumen general del mes
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Ventas totales", resumen_mes.cantidad_ventas)
             with col2:
                 st.metric("Total cobrado", formato_moneda(resumen_mes.total_cobrado))
             with col3:
+                st.metric("Envíos a pagar", formato_moneda(total_envios_mes))
+            with col4:
                 st.metric("Ganancia total", formato_moneda(resumen_mes.total_ganancia))
             
             # Selector de día específico para ver detalle
