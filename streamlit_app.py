@@ -617,7 +617,7 @@ with tab3:
             .order_by(Producto.nombre_producto)
         ).all()
 
-        with st.form("form_venta"):
+        with st.form("form_venta", enter_to_submit=False):
             col1, col2 = st.columns(2)
             with col1:
                 nombre_cliente = st.text_input("Nombre del cliente *")
