@@ -14,6 +14,14 @@ class ItemVentaInput:
 
 
 @dataclass(frozen=True, slots=True)
+class BolsaVentaInput:
+    """Bolsa utilizada en una venta."""
+
+    id_insumo: int
+    cantidad: int
+
+
+@dataclass(frozen=True, slots=True)
 class LineaVentaCalculada:
     id_producto: int
     nombre_producto: str

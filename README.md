@@ -156,4 +156,4 @@ docker-compose down -v && docker-compose up -d
 
 ## Notas de desarrollo
 
-Este proyecto fue desarrollado con asistencia de herramientas de generación de código basadas en IA (Cursor), utilizadas como acelerador dentro de un proceso de diseño e iteración propio: definición del modelo de datos, revisión de la lógica de negocio y validación funcional contra las necesidades reales del negocio.
+Este proyecto fue desarrollado con asistencia de herramientas de generación de código basadas en IA (Codex & Cursor), utilizadas como acelerador dentro de un proceso de diseño e iteración propio: definición del modelo de datos, revisión de la lógica de negocio y validación funcional contra las necesidades reales del negocio.

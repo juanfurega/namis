@@ -29,7 +29,13 @@ __all__ = [
 ]
 
 
-def crear_insumo(session: Session, nombre: str, unidad_medida: str) -> Insumo:
+def crear_insumo(
+    session: Session,
+    nombre: str,
+    unidad_medida: str,
+    *,
+    es_bolsa: bool = False,
+) -> Insumo:
     nombre_limpio = nombre.strip()
     unidad_limpia = unidad_medida.strip()
 
@@ -39,7 +45,11 @@ def crear_insumo(session: Session, nombre: str, unidad_medida: str) -> Insumo:
     if existe is not None:
         raise InsumoDuplicadoError(nombre_limpio)
 
-    insumo = Insumo(nombre_insumo=nombre_limpio, unidad_medida=unidad_limpia)
+    insumo = Insumo(
+        nombre_insumo=nombre_limpio,
+        unidad_medida=unidad_limpia,
+        es_bolsa=es_bolsa,
+    )
     session.add(insumo)
     session.flush()
     return insumo
@@ -135,6 +145,7 @@ def listar_insumos_actuales(session: Session) -> list[InsumoConPrecioVigente]:
                 id_insumo=insumo.id_insumo,
                 nombre_insumo=insumo.nombre_insumo,
                 unidad_medida=insumo.unidad_medida,
+                es_bolsa=insumo.es_bolsa,
                 precio_vigente=precio,
             )
         )

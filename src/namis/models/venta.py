@@ -12,6 +12,7 @@ from namis.models.base import Base
 
 if TYPE_CHECKING:
     from namis.models.cliente import Cliente
+    from namis.models.detalle_bolsa_venta import DetalleBolsaVenta
     from namis.models.detalle_venta import DetalleVenta
     from namis.models.promocion import Promocion
 
@@ -50,6 +51,10 @@ class Venta(Base):
     cliente: Mapped[Cliente] = relationship(back_populates="ventas")
     promocion: Mapped[Promocion | None] = relationship(back_populates="ventas")
     detalles: Mapped[list[DetalleVenta]] = relationship(
+        back_populates="venta",
+        cascade="all, delete-orphan",
+    )
+    bolsas: Mapped[list[DetalleBolsaVenta]] = relationship(
         back_populates="venta",
         cascade="all, delete-orphan",
     )

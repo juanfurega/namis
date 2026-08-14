@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from namis.exceptions import VentaNoEncontradaError
 from namis.models.detalle_venta import DetalleVenta
+from namis.models.detalle_bolsa_venta import DetalleBolsaVenta
 from namis.models.venta import Venta
 from namis.schemas.balance import (
     BalancePorMedioPago,
@@ -31,6 +32,8 @@ def _metricas_venta(venta: Venta) -> tuple[Decimal, Decimal, Decimal, Decimal]:
     for det in venta.detalles:
         subtotal_bruto += det.precio_unitario_cobrado * det.cantidad
         costo_productos += det.costo_unitario_historico * det.cantidad
+    for bolsa in venta.bolsas:
+        costo_productos += bolsa.costo_total
 
     subtotal_bruto = money(subtotal_bruto)
     costo_productos = money(costo_productos)
@@ -89,6 +92,7 @@ def _cargar_venta(session: Session, id_venta: int) -> Venta:
             selectinload(Venta.cliente),
             selectinload(Venta.promocion),
             selectinload(Venta.detalles).selectinload(DetalleVenta.producto),
+            selectinload(Venta.bolsas).selectinload(DetalleBolsaVenta.insumo),
         )
     )
     if venta is None:
@@ -108,6 +112,7 @@ def _ventas_en_rango(session: Session, desde: date, hasta: date) -> list[Venta]:
                 selectinload(Venta.cliente),
                 selectinload(Venta.promocion),
                 selectinload(Venta.detalles).selectinload(DetalleVenta.producto),
+                selectinload(Venta.bolsas).selectinload(DetalleBolsaVenta.insumo),
             )
             .order_by(Venta.fecha.desc(), Venta.id_venta.desc())
         ).all()

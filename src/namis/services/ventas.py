@@ -5,12 +5,15 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
 from namis.exceptions import ProductoNoEncontradoError, VentaInvalidaError
+from namis.models.detalle_bolsa_venta import DetalleBolsaVenta
 from namis.models.detalle_venta import DetalleVenta
+from namis.models.insumo import Insumo
 from namis.models.producto import Producto
 from namis.models.venta import Venta
 from namis.schemas.ventas import (
     MEDIOS_COMUNICACION,
     MEDIOS_PAGO,
+    BolsaVentaInput,
     ItemVentaInput,
     LineaVentaCalculada,
     PresupuestoVenta,
@@ -18,6 +21,7 @@ from namis.schemas.ventas import (
 )
 from namis.services.clientes import obtener_o_crear_cliente
 from namis.services.promociones import evaluar_promocion_aplicable
+from namis.services.insumo_precios import obtener_precio_vigente_insumo
 from namis.utils.money import money
 from namis.utils.timezone import ahora_argentina
 
@@ -80,6 +84,7 @@ def registrar_venta(
     *,
     nombre_cliente: str,
     items: list[ItemVentaInput],
+    bolsas: list[BolsaVentaInput] | None = None,
     medio_pago: str | None = None,
     monto_efectivo: Decimal | None = None,
     red_social: str | None = None,
@@ -118,6 +123,7 @@ def registrar_venta(
         items,
         costo_envio=costo_envio,
     )
+    bolsas_calculadas = _calcular_bolsas(session, bolsas or [])
     efectivo, transferencia = _calcular_montos_pago(
         medio_pago,
         monto_efectivo,
@@ -151,6 +157,16 @@ def registrar_venta(
                 cantidad=linea.cantidad,
                 precio_unitario_cobrado=linea.precio_unitario,
                 costo_unitario_historico=linea.costo_unitario,
+            )
+        )
+    for id_insumo, cantidad, precio_unitario, costo_total in bolsas_calculadas:
+        session.add(
+            DetalleBolsaVenta(
+                id_venta=venta.id_venta,
+                id_insumo=id_insumo,
+                cantidad=cantidad,
+                precio_unitario_historico=precio_unitario,
+                costo_total=costo_total,
             )
         )
     session.flush()
@@ -194,6 +210,38 @@ def _calcular_montos_pago(
             )
         return efectivo, money(total_cobrado - efectivo)
     return Decimal("0.00"), Decimal("0.00")
+
+
+def _calcular_bolsas(
+    session: Session,
+    bolsas: list[BolsaVentaInput],
+) -> list[tuple[int, int, Decimal, Decimal]]:
+    """Valida las bolsas y fija su costo unitario histórico."""
+    calculadas: list[tuple[int, int, Decimal, Decimal]] = []
+    ids_vistos: set[int] = set()
+    for bolsa in bolsas:
+        if bolsa.cantidad <= 0:
+            raise VentaInvalidaError("La cantidad de bolsas debe ser mayor a cero.")
+        if bolsa.id_insumo in ids_vistos:
+            raise VentaInvalidaError("No se puede repetir una bolsa en la venta.")
+
+        insumo = session.get(Insumo, bolsa.id_insumo)
+        if insumo is None or not insumo.es_bolsa:
+            raise VentaInvalidaError("El insumo seleccionado no está marcado como bolsa.")
+
+        precio_unitario = obtener_precio_vigente_insumo(
+            session, bolsa.id_insumo
+        ).precio_unitario
+        calculadas.append(
+            (
+                bolsa.id_insumo,
+                bolsa.cantidad,
+                precio_unitario,
+                money(precio_unitario * bolsa.cantidad),
+            )
+        )
+        ids_vistos.add(bolsa.id_insumo)
+    return calculadas
 
 
 def listar_ultimas_ventas(session: Session, limite: int = 20) -> list[Venta]:

@@ -18,6 +18,7 @@ class InsumoConPrecioVigente:
     id_insumo: int
     nombre_insumo: str
     unidad_medida: str
+    es_bolsa: bool
     precio_vigente: PrecioVigenteInsumo | None
 
 

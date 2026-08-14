@@ -63,7 +63,19 @@ CREATE TABLE detalle_ventas (
 CREATE TABLE insumos ( -- MATERIA PRIMA
     id_insumo INT AUTO_INCREMENT PRIMARY KEY,
     nombre_insumo VARCHAR(100) NOT NULL UNIQUE,
-    unidad_medida VARCHAR(20) NOT NULL -- Ej: 'ml', 'gramos', 'unidades'
+    unidad_medida VARCHAR(20) NOT NULL, -- Ej: 'ml', 'gramos', 'unidades'
+    es_bolsa BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE detalle_bolsas_venta (
+    id_detalle_bolsa INT AUTO_INCREMENT PRIMARY KEY,
+    id_venta INT NOT NULL,
+    id_insumo INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario_historico DECIMAL(10, 2) NOT NULL,
+    costo_total DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (id_venta) REFERENCES ventas(id_venta) ON DELETE CASCADE,
+    FOREIGN KEY (id_insumo) REFERENCES insumos(id_insumo)
 );
 
 CREATE TABLE insumos_historial_precios ( -- HISTORIAL DE PRECIOS DE LA MATERIA PRIMA

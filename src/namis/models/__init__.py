@@ -2,6 +2,7 @@
 
 from namis.models.base import Base
 from namis.models.cliente import Cliente
+from namis.models.detalle_bolsa_venta import DetalleBolsaVenta
 from namis.models.detalle_venta import DetalleVenta
 from namis.models.insumo import Insumo
 from namis.models.insumo_historial import InsumoHistorialPrecio
@@ -14,6 +15,7 @@ from namis.models.venta import Venta
 __all__ = [
     "Base",
     "Cliente",
+    "DetalleBolsaVenta",
     "DetalleVenta",
     "Insumo",
     "InsumoHistorialPrecio",

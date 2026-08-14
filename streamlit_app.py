@@ -3,6 +3,7 @@ Interfaz Streamlit para Namis - Sistema de gestión de yogurtería
 """
 import sys
 import os
+from types import SimpleNamespace
 
 # Le decimos a Python que también busque módulos adentro de la carpeta 'src'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
@@ -159,11 +160,18 @@ with tab1:
             
             with col2:
                 unidad_medida = st.text_input("Unidad de Medida (ej: kg, l, un)", key="unidad_nuevo_insumo")
+
+            es_bolsa = st.checkbox("Bolsa", key="es_bolsa_nuevo_insumo")
             
             if st.button("Crear Insumo", key="btn_crear_insumo"):
                 if nombre_nuevo and unidad_medida:
                     try:
-                        nuevo_insumo = crear_insumo(session, nombre_nuevo, unidad_medida)
+                        nuevo_insumo = crear_insumo(
+                            session,
+                            nombre_nuevo,
+                            unidad_medida,
+                            es_bolsa=es_bolsa,
+                        )
                         session.commit()
                         st.success(f"✅ Insumo '{nombre_nuevo}' creado correctamente (ID: {nuevo_insumo.id_insumo})")
                         st.rerun()
@@ -605,7 +613,7 @@ with tab3:
         )
         from namis.models.producto import Producto
         from namis.models.receta import Receta
-        from sqlalchemy import select
+        from sqlalchemy import select, text
         from decimal import Decimal
         from datetime import datetime
         
@@ -616,6 +624,12 @@ with tab3:
             .where(Producto.a_la_venta.is_(True))
             .order_by(Producto.nombre_producto)
         ).all()
+        insumos_bolsa = session.execute(
+            text(
+                "SELECT id_insumo, nombre_insumo FROM insumos "
+                "WHERE es_bolsa = TRUE ORDER BY nombre_insumo"
+            )
+        ).mappings().all()
 
         with st.form("form_venta", enter_to_submit=False):
             col1, col2 = st.columns(2)
@@ -640,6 +654,8 @@ with tab3:
                     value=0.0,
                     key="costo_envio_venta",
                 )
+
+            bolsas_seleccionadas = []
             
             if productos_activos:
                 st.subheader("Productos")
@@ -656,6 +672,34 @@ with tab3:
                 
                 with col_cant:
                     cantidad = st.number_input("Cantidad", min_value=1, value=1, key="cantidad_producto")
+
+                if insumos_bolsa:
+                    col_titulo_bolsas, col_titulo_cantidad = st.columns([3, 1])
+                    with col_titulo_bolsas:
+                        st.write("**Bolsas**")
+                    with col_titulo_cantidad:
+                        st.write("Cantidad")
+
+                    for insumo_bolsa in insumos_bolsa:
+                        col_nombre_bolsa, col_cantidad_bolsa = st.columns([3, 1])
+                        with col_nombre_bolsa:
+                            st.write(insumo_bolsa["nombre_insumo"])
+                        with col_cantidad_bolsa:
+                            cantidad_bolsa = st.number_input(
+                                "Cantidad",
+                                min_value=0,
+                                value=0,
+                                step=1,
+                                key=f"cantidad_bolsa_{insumo_bolsa['id_insumo']}",
+                                label_visibility="collapsed",
+                            )
+                        if cantidad_bolsa > 0:
+                            bolsas_seleccionadas.append(
+                                SimpleNamespace(
+                                    id_insumo=insumo_bolsa["id_insumo"],
+                                    cantidad=cantidad_bolsa,
+                                )
+                            )
                 
                 agregar = st.form_submit_button("Agregar al carrito", use_container_width=True)
                 if agregar and producto_seleccionado:
@@ -734,6 +778,7 @@ with tab3:
                             session,
                             nombre_cliente=nombre_cliente,
                             items=items,
+                            bolsas=bolsas_seleccionadas,
                             medio_pago=(
                                 "dividido" if medio_pago == "Pago dividido"
                                 else medio_pago.lower() if medio_pago else None

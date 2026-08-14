@@ -39,10 +39,11 @@ from namis.services.ventas import (
     registrar_venta,
 )
 from namis.schemas.promociones import RequisitoPromocionInput
-from namis.schemas.ventas import ItemVentaInput
+from namis.schemas.ventas import BolsaVentaInput, ItemVentaInput
 
 __all__ = [
     "ItemVentaInput",
+    "BolsaVentaInput",
     "RequisitoPromocionInput",
     "actualizar_estado_deudor",
     "actualizar_precios_producto",
