@@ -3,6 +3,7 @@ Interfaz Streamlit para Namis - Sistema de gestión de yogurtería
 """
 import sys
 import os
+from html import escape
 from types import SimpleNamespace
 
 # Le decimos a Python que también busque módulos adentro de la carpeta 'src'
@@ -674,16 +675,30 @@ with tab3:
                     cantidad = st.number_input("Cantidad", min_value=1, value=1, key="cantidad_producto")
 
                 if insumos_bolsa:
+                    estilo_texto_bolsa = (
+                        "font-size: 0.875rem; line-height: 1.25rem; "
+                        "font-family: inherit; color: inherit; margin: 0; padding: 0;"
+                    )
                     col_titulo_bolsas, col_titulo_cantidad = st.columns([3, 1])
                     with col_titulo_bolsas:
-                        st.write("**Bolsas**")
+                        st.markdown(
+                            f'<div style="{estilo_texto_bolsa}"><strong>Bolsas</strong></div>',
+                            unsafe_allow_html=True,
+                        )
                     with col_titulo_cantidad:
-                        st.write("Cantidad")
+                        st.markdown(
+                            f'<div style="{estilo_texto_bolsa}">Cantidad</div>',
+                            unsafe_allow_html=True,
+                        )
 
                     for insumo_bolsa in insumos_bolsa:
                         col_nombre_bolsa, col_cantidad_bolsa = st.columns([3, 1])
                         with col_nombre_bolsa:
-                            st.write(insumo_bolsa["nombre_insumo"])
+                            nombre_bolsa = escape(insumo_bolsa["nombre_insumo"])
+                            st.markdown(
+                                f'<div style="{estilo_texto_bolsa}">{nombre_bolsa}</div>',
+                                unsafe_allow_html=True,
+                            )
                         with col_cantidad_bolsa:
                             cantidad_bolsa = st.number_input(
                                 "Cantidad",

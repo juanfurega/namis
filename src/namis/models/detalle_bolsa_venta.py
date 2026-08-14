@@ -23,12 +23,14 @@ class DetalleBolsaVenta(Base):
     id_venta: Mapped[int] = mapped_column(
         Integer, ForeignKey("ventas.id_venta", ondelete="CASCADE"), nullable=False
     )
-    id_insumo: Mapped[int] = mapped_column(
-        Integer, ForeignKey("insumos.id_insumo"), nullable=False
+    id_insumo: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("insumos.id_insumo", ondelete="SET NULL"),
+        nullable=True,
     )
     cantidad: Mapped[int] = mapped_column(Integer, nullable=False)
     precio_unitario_historico: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     costo_total: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
     venta: Mapped[Venta] = relationship(back_populates="bolsas")
-    insumo: Mapped[Insumo] = relationship(back_populates="bolsas_utilizadas")
+    insumo: Mapped[Insumo | None] = relationship(back_populates="bolsas_utilizadas")
