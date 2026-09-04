@@ -17,6 +17,7 @@ from namis.schemas.balance import (
     DiaCalendario,
     HistorialDiaPorCliente,
     LineaVentaHistorial,
+    ProductoVendidoMes,
     ResumenDia,
     ResumenMesCalendario,
     VentaHistorialConCliente,
@@ -251,6 +252,73 @@ def _pagos_para_balance(
     return pagos
 
 
+def _resumir_productos_mes(ventas: list[Venta]) -> list[ProductoVendidoMes]:
+    """Agrupa unidades y rentabilidad usando los importes históricos de cada venta."""
+    acumulados: dict[int, dict[str, object]] = {}
+
+    for venta in ventas:
+        if not venta.detalles:
+            continue
+
+        subtotal_bruto = sum(
+            (
+                detalle.precio_unitario_cobrado * detalle.cantidad
+                for detalle in venta.detalles
+            ),
+            Decimal("0.00"),
+        )
+        unidades_totales = sum(detalle.cantidad for detalle in venta.detalles)
+        costo_bolsas = sum(
+            (bolsa.costo_total for bolsa in venta.bolsas),
+            Decimal("0.00"),
+        )
+        descuento = venta.monto_descontado or Decimal("0.00")
+
+        for detalle in venta.detalles:
+            subtotal_linea = detalle.precio_unitario_cobrado * detalle.cantidad
+            if subtotal_bruto > 0:
+                proporcion = subtotal_linea / subtotal_bruto
+            else:
+                proporcion = Decimal(detalle.cantidad) / Decimal(unidades_totales)
+
+            costo_directo = detalle.costo_unitario_historico * detalle.cantidad
+            costo_asignado = costo_directo + costo_bolsas * proporcion
+            if venta.es_deudor:
+                ganancia_asignada = Decimal("0.00")
+            else:
+                ganancia_asignada = (
+                    subtotal_linea - descuento * proporcion - costo_asignado
+                )
+
+            producto = acumulados.setdefault(
+                detalle.id_producto,
+                {
+                    "nombre": detalle.producto.nombre_producto,
+                    "unidades": 0,
+                    "costo": Decimal("0.00"),
+                    "ganancia": Decimal("0.00"),
+                },
+            )
+            producto["unidades"] += detalle.cantidad
+            producto["costo"] += costo_asignado
+            producto["ganancia"] += ganancia_asignada
+
+    resultado = [
+        ProductoVendidoMes(
+            id_producto=id_producto,
+            nombre_producto=str(datos["nombre"]),
+            unidades_vendidas=int(datos["unidades"]),
+            costo_acumulado=money(datos["costo"]),
+            ganancia_generada=money(datos["ganancia"]),
+        )
+        for id_producto, datos in acumulados.items()
+    ]
+    return sorted(
+        resultado,
+        key=lambda producto: (-producto.unidades_vendidas, producto.nombre_producto.lower()),
+    )
+
+
 def obtener_resumen_mes_calendario(
     session: Session,
     anio: int,
@@ -307,4 +375,5 @@ def obtener_resumen_mes_calendario(
         total_envios=money(total_envios),
         total_ganancia=money(total_ganancia),
         cantidad_ventas=len(ventas),
+        productos_mas_vendidos=_resumir_productos_mes(ventas),
     )

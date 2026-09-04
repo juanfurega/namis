@@ -322,7 +322,7 @@ with tab2:
         st.divider()
         
         # Ver y editar receta
-        st.subheader("Receta")
+        st.subheader("👩‍🍳 Receta")
         
         try:
             productos = session.scalars(
@@ -1250,14 +1250,12 @@ with tab5:
         from datetime import date, datetime
         import calendar
         
-        # Selector de vista: día, semana, mes
-        vista = st.selectbox(
-            "Seleccionar vista",
-            ["Día específico", "Mes calendario"],
-            key="balance_vista"
-        )
+        tab_balance_dia, tab_balance_mes = st.tabs([
+            "Cierre diario",
+            "Análisis mensual",
+        ])
         
-        if vista == "Día específico":
+        with tab_balance_dia:
             st.subheader("Balance diario")
             
             # Selector de fecha
@@ -1334,7 +1332,7 @@ with tab5:
             else:
                 st.info("No hay ventas registradas para esta fecha.")
         
-        elif vista == "Mes calendario":
+        with tab_balance_mes:
             st.subheader("Balance mensual")
             
             # Selector de mes y año
@@ -1355,9 +1353,69 @@ with tab5:
             with col2:
                 st.metric("Total cobrado", formato_moneda(resumen_mes.total_cobrado))
             with col3:
-                st.metric("Envíos a pagar", formato_moneda(total_envios_mes))
+                st.metric("Envíos", formato_moneda(total_envios_mes))
             with col4:
                 st.metric("Ganancia total", formato_moneda(resumen_mes.total_ganancia))
+
+            st.divider()
+            st.subheader("Productos más vendidos")
+
+            if resumen_mes.productos_mas_vendidos:
+                import altair as alt
+
+                datos_productos = [
+                    {
+                        "Producto": producto.nombre_producto,
+                        "Unidades vendidas": producto.unidades_vendidas,
+                        "Ganancia generada": float(producto.ganancia_generada),
+                        "Costo acumulado": float(producto.costo_acumulado),
+                    }
+                    for producto in resumen_mes.productos_mas_vendidos
+                ]
+                grafico_productos = (
+                    alt.Chart(alt.Data(values=datos_productos))
+                    .mark_bar()
+                    .encode(
+                        x=alt.X(
+                            "Unidades vendidas:Q",
+                            title="Unidades vendidas",
+                            axis=alt.Axis(format="d"),
+                        ),
+                        y=alt.Y(
+                            "Producto:N",
+                            title=None,
+                            sort=alt.EncodingSortField(
+                                field="Unidades vendidas",
+                                op="sum",
+                                order="descending",
+                            ),
+                        ),
+                        tooltip=[
+                            alt.Tooltip("Producto:N", title="Producto"),
+                            alt.Tooltip(
+                                "Unidades vendidas:Q",
+                                title="Unidades vendidas",
+                                format="d",
+                            ),
+                            alt.Tooltip(
+                                "Ganancia generada:Q",
+                                title="Ganancia generada",
+                                format="$,.2f",
+                            ),
+                            alt.Tooltip(
+                                "Costo acumulado:Q",
+                                title="Costo acumulado",
+                                format="$,.2f",
+                            ),
+                        ],
+                    )
+                    .properties(
+                        height=max(240, len(datos_productos) * 38),
+                    )
+                )
+                st.altair_chart(grafico_productos, width="stretch")
+            else:
+                st.info("No hay productos vendidos en el mes seleccionado.")
             
             # Selector de día específico para ver detalle
             st.divider()

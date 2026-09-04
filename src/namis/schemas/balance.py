@@ -89,6 +89,15 @@ class DiaCalendario:
 
 
 @dataclass(frozen=True, slots=True)
+class ProductoVendidoMes:
+    id_producto: int
+    nombre_producto: str
+    unidades_vendidas: int
+    costo_acumulado: Decimal
+    ganancia_generada: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class ResumenMesCalendario:
     anio: int
     mes: int
@@ -97,3 +106,4 @@ class ResumenMesCalendario:
     total_envios: Decimal
     total_ganancia: Decimal
     cantidad_ventas: int
+    productos_mas_vendidos: list[ProductoVendidoMes]
