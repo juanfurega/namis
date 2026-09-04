@@ -1308,7 +1308,6 @@ with tab5:
                     style="left: {x / ancho_svg * 100:.3f}%; top: {y / alto_svg * 100:.3f}%"
                     tabindex="0"
                 >
-                    <span class="periodo-marcador"></span>
                     <div class="periodo-tooltip">
                         <div><strong>{etiqueta}</strong></div>
                         <div>Ventas: {punto.cantidad_ventas}</div>
@@ -1325,18 +1324,41 @@ with tab5:
             )
 
         linea = " ".join(f"{x:.2f},{y:.2f}" for x, y, _ in posiciones)
+        marcadores_svg = "".join(
+            f'<circle cx="{x:.2f}" cy="{y:.2f}" r="6" '
+            'class="periodo-punto-svg" />'
+            for x, y, _ in posiciones
+        )
         grafico_html = dedent("""
             <style>
+                :root {
+                    color-scheme: light dark;
+                }
+                html, body {
+                    margin: 0;
+                    padding: 3.8rem 0.15rem 0;
+                    background: transparent;
+                    color: #31333f;
+                    font-family: "Source Sans 3", sans-serif;
+                }
+                @media (prefers-color-scheme: dark) {
+                    html, body {
+                        color: #fafafa;
+                    }
+                }
                 .periodo-grafico-area {
                     position: relative;
                     width: 100%;
+                    aspect-ratio: 3 / 1;
                     margin: 0.25rem 0 1rem;
                     overflow: visible;
                 }
                 .periodo-grafico-area svg {
+                    position: absolute;
+                    inset: 0;
                     display: block;
                     width: 100%;
-                    height: auto;
+                    height: 100%;
                     overflow: visible;
                 }
                 .periodo-grilla {
@@ -1350,6 +1372,11 @@ with tab5:
                     stroke-width: 3;
                     stroke-linejoin: round;
                     stroke-linecap: round;
+                }
+                .periodo-punto-svg {
+                    fill: #4c78a8;
+                    stroke: #ffffff;
+                    stroke-width: 2;
                 }
                 .periodo-eje-x,
                 .periodo-eje-y,
@@ -1373,18 +1400,6 @@ with tab5:
                     transform: translate(-50%, -50%);
                     cursor: help;
                     outline-offset: 2px;
-                }
-                .periodo-marcador {
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    width: 0.72rem;
-                    height: 0.72rem;
-                    border: 2px solid #ffffff;
-                    border-radius: 50%;
-                    background: #4c78a8;
-                    box-shadow: 0 0 0 1px #4c78a8;
-                    transform: translate(-50%, -50%);
                 }
                 .periodo-tooltip {
                     position: absolute;
@@ -1436,12 +1451,12 @@ with tab5:
                     <text x="55" y="14" class="periodo-titulo-eje">Cantidad de ventas</text>
         """) + "".join(grilla) + f"""
                     <polyline points="{linea}" class="periodo-linea" />
-        """ + "".join(etiquetas_x) + dedent("""
+        """ + marcadores_svg + "".join(etiquetas_x) + dedent("""
                 </svg>
         """) + "".join(anclas) + dedent("""
             </div>
         """)
-        st.html(grafico_html)
+        st.iframe(grafico_html, height=410)
 
     def obtener_puntos_diarios_compatibles(session, resumen_mes, anio, mes):
         """Tolera una recarga de Streamlit que conserve el resumen semanal anterior."""
