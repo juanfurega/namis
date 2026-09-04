@@ -1442,6 +1442,53 @@ with tab5:
             </div>
         """)
         st.html(grafico_html)
+
+    def obtener_puntos_diarios_compatibles(session, resumen_mes, anio, mes):
+        """Tolera una recarga de Streamlit que conserve el resumen semanal anterior."""
+        puntos_diarios = getattr(resumen_mes, "ventas_por_dia", None)
+        if puntos_diarios is not None:
+            return puntos_diarios
+
+        import calendar as calendar_compat
+        from datetime import date as date_compat
+        from decimal import Decimal as DecimalCompat
+        import namis.services.balance as balance_service
+
+        ultimo_dia = calendar_compat.monthrange(anio, mes)[1]
+        ventas = balance_service._ventas_en_rango(
+            session,
+            date_compat(anio, mes, 1),
+            date_compat(anio, mes, ultimo_dia),
+        )
+        ventas_por_dia = {}
+        for venta in ventas:
+            if venta.fecha is not None:
+                ventas_por_dia.setdefault(venta.fecha.day, []).append(venta)
+
+        resultado = []
+        for dia in range(1, ultimo_dia + 1):
+            ventas_dia = ventas_por_dia.get(dia, [])
+            facturado = DecimalCompat("0.00")
+            costo = DecimalCompat("0.00")
+            ganancia = DecimalCompat("0.00")
+            for venta in ventas_dia:
+                facturado_venta, costo_venta, _, ganancia_venta = (
+                    balance_service._metricas_venta(venta)
+                )
+                facturado += facturado_venta
+                costo += costo_venta
+                ganancia += ganancia_venta
+
+            resultado.append(
+                SimpleNamespace(
+                    etiqueta=str(dia),
+                    cantidad_ventas=len(ventas_dia),
+                    total_facturado=facturado,
+                    costo_total=costo,
+                    ganancia_total=ganancia,
+                )
+            )
+        return resultado
     
     with session_scope() as session:
         from namis.services import obtener_resumen_dia, obtener_resumen_mes_calendario, obtener_ventas_por_mes_anio, listar_historial_dia_por_cliente
@@ -1696,9 +1743,15 @@ with tab5:
 
             st.divider()
             ventas_por_mes = obtener_ventas_por_mes_anio(session, anio)
+            ventas_por_dia = obtener_puntos_diarios_compatibles(
+                session,
+                resumen_mes,
+                anio,
+                mes,
+            )
             mostrar_grafico_ventas_periodo(
                 "Ventas diarias del mes seleccionado",
-                resumen_mes.ventas_por_dia,
+                ventas_por_dia,
             )
             mostrar_grafico_ventas_periodo(
                 f"Ventas por mes de {anio}",
