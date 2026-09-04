@@ -1301,10 +1301,11 @@ with tab5:
                 else " periodo-punto-final" if indice == len(posiciones) - 1
                 else ""
             )
+            clase_vertical = " periodo-tooltip-abajo" if y < alto_svg / 2 else ""
             anclas.append(
                 f"""
                 <div
-                    class="periodo-punto{clase_borde}"
+                    class="periodo-punto{clase_borde}{clase_vertical}"
                     style="left: {x / ancho_svg * 100:.3f}%; top: {y / alto_svg * 100:.3f}%"
                     tabindex="0"
                 >
@@ -1336,15 +1337,13 @@ with tab5:
                 }
                 html, body {
                     margin: 0;
-                    padding: 3.8rem 0.15rem 0;
-                    background: transparent;
+                    width: 100%;
+                    box-sizing: border-box;
+                    overflow: hidden;
+                    padding: 0.2rem;
+                    background: #ffffff;
                     color: #31333f;
                     font-family: "Source Sans 3", sans-serif;
-                }
-                @media (prefers-color-scheme: dark) {
-                    html, body {
-                        color: #fafafa;
-                    }
                 }
                 .periodo-grafico-area {
                     position: relative;
@@ -1428,6 +1427,10 @@ with tab5:
                     visibility: visible;
                     opacity: 1;
                 }
+                .periodo-tooltip-abajo .periodo-tooltip {
+                    top: calc(100% + 0.45rem);
+                    bottom: auto;
+                }
                 .periodo-punto-inicial .periodo-tooltip {
                     left: -0.25rem;
                     transform: none;
@@ -1456,7 +1459,7 @@ with tab5:
         """) + "".join(anclas) + dedent("""
             </div>
         """)
-        st.iframe(grafico_html, height=410)
+        st.iframe(grafico_html, height="content")
 
     def obtener_puntos_diarios_compatibles(session, resumen_mes, anio, mes):
         """Tolera una recarga de Streamlit que conserve el resumen semanal anterior."""
@@ -1672,7 +1675,7 @@ with tab5:
                         .producto-grafico-nombre {
                             font-size: 0.875rem;
                             line-height: 1.25rem;
-                            text-align: right;
+                            text-align: left;
                         }
                         .producto-grafico-pista {
                             height: 1.8rem;
