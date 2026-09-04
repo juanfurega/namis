@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -16,6 +16,7 @@ from namis.schemas.balance import (
     DiaCalendario,
     HistorialDiaPorCliente,
     LineaVentaHistorial,
+    PuntoVentasPeriodo,
     ProductoVendidoMes,
     ResumenDia,
     ResumenMesCalendario,
@@ -294,11 +295,13 @@ def _resumir_productos_mes(ventas: list[Venta]) -> list[ProductoVendidoMes]:
                 {
                     "nombre": detalle.producto.nombre_producto,
                     "unidades": 0,
+                    "facturado": Decimal("0.00"),
                     "costo": Decimal("0.00"),
                     "ganancia": Decimal("0.00"),
                 },
             )
             producto["unidades"] += detalle.cantidad
+            producto["facturado"] += subtotal_linea
             producto["costo"] += costo_asignado
             producto["ganancia"] += ganancia_asignada
 
@@ -307,6 +310,7 @@ def _resumir_productos_mes(ventas: list[Venta]) -> list[ProductoVendidoMes]:
             id_producto=id_producto,
             nombre_producto=str(datos["nombre"]),
             unidades_vendidas=int(datos["unidades"]),
+            total_facturado=money(datos["facturado"]),
             costo_acumulado=money(datos["costo"]),
             ganancia_generada=money(datos["ganancia"]),
         )
@@ -316,6 +320,90 @@ def _resumir_productos_mes(ventas: list[Venta]) -> list[ProductoVendidoMes]:
         resultado,
         key=lambda producto: (-producto.unidades_vendidas, producto.nombre_producto.lower()),
     )
+
+
+def _crear_punto_periodo(
+    etiqueta: str,
+    ventas: list[Venta],
+) -> PuntoVentasPeriodo:
+    total_facturado = Decimal("0.00")
+    costo_total = Decimal("0.00")
+    ganancia_total = Decimal("0.00")
+
+    for venta in ventas:
+        facturado, costo, _, ganancia = _metricas_venta(venta)
+        total_facturado += facturado
+        costo_total += costo
+        ganancia_total += ganancia
+
+    return PuntoVentasPeriodo(
+        etiqueta=etiqueta,
+        cantidad_ventas=len(ventas),
+        total_facturado=money(total_facturado),
+        costo_total=money(costo_total),
+        ganancia_total=money(ganancia_total),
+    )
+
+
+def _resumir_ventas_por_semana(
+    ventas: list[Venta],
+    anio: int,
+    mes: int,
+) -> list[PuntoVentasPeriodo]:
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    inicio_mes = date(anio, mes, 1)
+    fin_mes = date(anio, mes, ultimo_dia)
+    inicio_semana = inicio_mes - timedelta(days=inicio_mes.weekday())
+    ventas_por_inicio: dict[date, list[Venta]] = {}
+
+    for venta in ventas:
+        if venta.fecha is None:
+            continue
+        fecha_venta = venta.fecha.date()
+        lunes = fecha_venta - timedelta(days=fecha_venta.weekday())
+        ventas_por_inicio.setdefault(lunes, []).append(venta)
+
+    resultado: list[PuntoVentasPeriodo] = []
+    lunes = inicio_semana
+    numero_semana = 1
+    while lunes <= fin_mes:
+        domingo = lunes + timedelta(days=6)
+        desde_visible = max(lunes, inicio_mes)
+        hasta_visible = min(domingo, fin_mes)
+        etiqueta = (
+            f"Sem. {numero_semana} "
+            f"({desde_visible.day}-{hasta_visible.day})"
+        )
+        resultado.append(
+            _crear_punto_periodo(etiqueta, ventas_por_inicio.get(lunes, []))
+        )
+        lunes += timedelta(days=7)
+        numero_semana += 1
+
+    return resultado
+
+
+def obtener_ventas_por_mes_anio(
+    session: Session,
+    anio: int,
+) -> list[PuntoVentasPeriodo]:
+    """Resume la cantidad y los importes de ventas de cada mes del año."""
+    desde = date(anio, 1, 1)
+    hasta = date(anio, 12, 31)
+    ventas = _ventas_en_rango(session, desde, hasta)
+    ventas_por_mes: dict[int, list[Venta]] = {}
+    for venta in ventas:
+        if venta.fecha is not None:
+            ventas_por_mes.setdefault(venta.fecha.month, []).append(venta)
+
+    nombres_meses = (
+        "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+        "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+    )
+    return [
+        _crear_punto_periodo(nombres_meses[mes - 1], ventas_por_mes.get(mes, []))
+        for mes in range(1, 13)
+    ]
 
 
 def obtener_resumen_mes_calendario(
@@ -375,4 +463,5 @@ def obtener_resumen_mes_calendario(
         total_ganancia=money(total_ganancia),
         cantidad_ventas=len(ventas),
         productos_mas_vendidos=_resumir_productos_mes(ventas),
+        ventas_por_semana=_resumir_ventas_por_semana(ventas, anio, mes),
     )

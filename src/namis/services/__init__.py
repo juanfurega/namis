@@ -4,6 +4,7 @@ from namis.services.balance import (
     obtener_detalle_venta,
     obtener_resumen_dia,
     obtener_resumen_mes_calendario,
+    obtener_ventas_por_mes_anio,
 )
 from namis.services.insumo_precios import obtener_precio_vigente_insumo
 from namis.services.insumos import (
@@ -71,6 +72,7 @@ __all__ = [
     "obtener_receta",
     "obtener_resumen_dia",
     "obtener_resumen_mes_calendario",
+    "obtener_ventas_por_mes_anio",
     "registrar_compra_insumo",
     "registrar_venta",
 ]

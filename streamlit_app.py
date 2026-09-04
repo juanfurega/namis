@@ -4,6 +4,7 @@ Interfaz Streamlit para Namis - Sistema de gestión de yogurtería
 import sys
 import os
 from html import escape
+from textwrap import dedent
 from types import SimpleNamespace
 
 # Le decimos a Python que también busque módulos adentro de la carpeta 'src'
@@ -1244,9 +1245,206 @@ with tab5:
 
     def formato_moneda(valor):
         return f"${valor:,.2f}"
+
+    def mostrar_grafico_ventas_periodo(titulo, puntos):
+        st.subheader(titulo)
+        if not puntos or not any(punto.cantidad_ventas for punto in puntos):
+            st.info("No hay ventas registradas para este período.")
+            return
+
+        ancho_svg = 900
+        alto_svg = 300
+        margen_izquierdo = 55
+        margen_derecho = 25
+        margen_superior = 25
+        margen_inferior = 55
+        ancho_util = ancho_svg - margen_izquierdo - margen_derecho
+        alto_util = alto_svg - margen_superior - margen_inferior
+        maximo_ventas = max(punto.cantidad_ventas for punto in puntos)
+
+        posiciones = []
+        for indice, punto in enumerate(puntos):
+            if len(puntos) == 1:
+                x = margen_izquierdo + ancho_util / 2
+            else:
+                x = margen_izquierdo + ancho_util * indice / (len(puntos) - 1)
+            y = margen_superior + alto_util * (
+                1 - punto.cantidad_ventas / maximo_ventas
+            )
+            posiciones.append((x, y, punto))
+
+        valores_eje = sorted({
+            round(maximo_ventas * paso / 4)
+            for paso in range(5)
+        })
+        grilla = []
+        for valor in valores_eje:
+            y = margen_superior + alto_util * (1 - valor / maximo_ventas)
+            grilla.append(
+                f'<line x1="{margen_izquierdo}" y1="{y:.2f}" '
+                f'x2="{ancho_svg - margen_derecho}" y2="{y:.2f}" '
+                'class="periodo-grilla" />'
+                f'<text x="{margen_izquierdo - 10}" y="{y + 4:.2f}" '
+                f'class="periodo-eje-y">{valor}</text>'
+            )
+
+        etiquetas_x = []
+        anclas = []
+        for indice, (x, y, punto) in enumerate(posiciones):
+            etiqueta = escape(punto.etiqueta)
+            etiquetas_x.append(
+                f'<text x="{x:.2f}" y="{alto_svg - 22}" '
+                f'class="periodo-eje-x">{etiqueta}</text>'
+            )
+            clase_borde = (
+                " periodo-punto-inicial" if indice == 0
+                else " periodo-punto-final" if indice == len(posiciones) - 1
+                else ""
+            )
+            anclas.append(
+                f"""
+                <div
+                    class="periodo-punto{clase_borde}"
+                    style="left: {x / ancho_svg * 100:.3f}%; top: {y / alto_svg * 100:.3f}%"
+                    tabindex="0"
+                >
+                    <span class="periodo-marcador"></span>
+                    <div class="periodo-tooltip">
+                        <div><strong>{etiqueta}</strong></div>
+                        <div>Ventas: {punto.cantidad_ventas}</div>
+                        <div>Total facturado: {formato_moneda(punto.total_facturado)}</div>
+                        <div class="periodo-ganancia">
+                            Ganancia total: {formato_moneda(punto.ganancia_total)}
+                        </div>
+                        <div class="periodo-costo">
+                            Costo total: {formato_moneda(punto.costo_total)}
+                        </div>
+                    </div>
+                </div>
+                """
+            )
+
+        linea = " ".join(f"{x:.2f},{y:.2f}" for x, y, _ in posiciones)
+        grafico_html = dedent("""
+            <style>
+                .periodo-grafico-area {
+                    position: relative;
+                    width: 100%;
+                    margin: 0.25rem 0 1rem;
+                    overflow: visible;
+                }
+                .periodo-grafico-area svg {
+                    display: block;
+                    width: 100%;
+                    height: auto;
+                    overflow: visible;
+                }
+                .periodo-grilla {
+                    stroke: currentColor;
+                    stroke-width: 1;
+                    opacity: 0.13;
+                }
+                .periodo-linea {
+                    fill: none;
+                    stroke: #4c78a8;
+                    stroke-width: 3;
+                    stroke-linejoin: round;
+                    stroke-linecap: round;
+                }
+                .periodo-eje-x,
+                .periodo-eje-y,
+                .periodo-titulo-eje {
+                    fill: currentColor;
+                    font-family: inherit;
+                    font-size: 12px;
+                    opacity: 0.78;
+                }
+                .periodo-eje-x {
+                    text-anchor: middle;
+                }
+                .periodo-eje-y {
+                    text-anchor: end;
+                }
+                .periodo-punto {
+                    position: absolute;
+                    z-index: 5;
+                    width: 1.3rem;
+                    height: 1.3rem;
+                    transform: translate(-50%, -50%);
+                    cursor: help;
+                    outline-offset: 2px;
+                }
+                .periodo-marcador {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    width: 0.72rem;
+                    height: 0.72rem;
+                    border: 2px solid #ffffff;
+                    border-radius: 50%;
+                    background: #4c78a8;
+                    box-shadow: 0 0 0 1px #4c78a8;
+                    transform: translate(-50%, -50%);
+                }
+                .periodo-tooltip {
+                    position: absolute;
+                    z-index: 30;
+                    left: 50%;
+                    bottom: calc(100% + 0.45rem);
+                    visibility: hidden;
+                    width: max-content;
+                    min-width: 14.5rem;
+                    padding: 0.65rem 0.8rem;
+                    border: 1px solid #d1d5db;
+                    border-radius: 0.4rem;
+                    background: #ffffff;
+                    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+                    color: #1f2937;
+                    font-size: 0.82rem;
+                    font-weight: 400;
+                    line-height: 1.4rem;
+                    opacity: 0;
+                    transform: translateX(-50%);
+                    transition: opacity 0.12s ease;
+                    pointer-events: none;
+                }
+                .periodo-punto:hover .periodo-tooltip,
+                .periodo-punto:focus .periodo-tooltip {
+                    visibility: visible;
+                    opacity: 1;
+                }
+                .periodo-punto-inicial .periodo-tooltip {
+                    left: -0.25rem;
+                    transform: none;
+                }
+                .periodo-punto-final .periodo-tooltip {
+                    right: -0.25rem;
+                    left: auto;
+                    transform: none;
+                }
+                .periodo-ganancia {
+                    color: #147a3f;
+                    font-weight: 600;
+                }
+                .periodo-costo {
+                    color: #b42318;
+                    font-weight: 600;
+                }
+            </style>
+            <div class="periodo-grafico-area">
+                <svg viewBox="0 0 900 300" role="img" aria-label="Cantidad de ventas por período">
+                    <text x="55" y="14" class="periodo-titulo-eje">Cantidad de ventas</text>
+        """) + "".join(grilla) + f"""
+                    <polyline points="{linea}" class="periodo-linea" />
+        """ + "".join(etiquetas_x) + dedent("""
+                </svg>
+        """) + "".join(anclas) + dedent("""
+            </div>
+        """)
+        st.markdown(grafico_html, unsafe_allow_html=True)
     
     with session_scope() as session:
-        from namis.services import obtener_resumen_dia, obtener_resumen_mes_calendario, listar_historial_dia_por_cliente
+        from namis.services import obtener_resumen_dia, obtener_resumen_mes_calendario, obtener_ventas_por_mes_anio, listar_historial_dia_por_cliente
         from datetime import date, datetime
         import calendar
         
@@ -1361,61 +1559,151 @@ with tab5:
             st.subheader("Productos más vendidos")
 
             if resumen_mes.productos_mas_vendidos:
-                import altair as alt
-
-                datos_productos = [
-                    {
-                        "Producto": producto.nombre_producto,
-                        "Unidades vendidas": producto.unidades_vendidas,
-                        "Ganancia generada": float(producto.ganancia_generada),
-                        "Costo acumulado": float(producto.costo_acumulado),
-                    }
+                maximo_unidades = max(
+                    producto.unidades_vendidas
                     for producto in resumen_mes.productos_mas_vendidos
-                ]
-                grafico_productos = (
-                    alt.Chart(alt.Data(values=datos_productos))
-                    .mark_bar()
-                    .encode(
-                        x=alt.X(
-                            "Unidades vendidas:Q",
-                            title="Unidades vendidas",
-                            axis=alt.Axis(format="d"),
-                        ),
-                        y=alt.Y(
-                            "Producto:N",
-                            title=None,
-                            sort=alt.EncodingSortField(
-                                field="Unidades vendidas",
-                                op="sum",
-                                order="descending",
-                            ),
-                        ),
-                        tooltip=[
-                            alt.Tooltip("Producto:N", title="Producto"),
-                            alt.Tooltip(
-                                "Unidades vendidas:Q",
-                                title="Unidades vendidas",
-                                format="d",
-                            ),
-                            alt.Tooltip(
-                                "Ganancia generada:Q",
-                                title="Ganancia generada",
-                                format="$,.2f",
-                            ),
-                            alt.Tooltip(
-                                "Costo acumulado:Q",
-                                title="Costo acumulado",
-                                format="$,.2f",
-                            ),
-                        ],
-                    )
-                    .properties(
-                        height=max(240, len(datos_productos) * 38),
-                    )
                 )
-                st.altair_chart(grafico_productos, width="stretch")
+                filas_productos = []
+                for producto in resumen_mes.productos_mas_vendidos:
+                    ancho_barra = producto.unidades_vendidas / maximo_unidades * 100
+                    nombre_producto = escape(producto.nombre_producto)
+                    filas_productos.append(
+                        dedent(f"""
+                        <div class="producto-grafico-fila">
+                            <div class="producto-grafico-nombre">{nombre_producto}</div>
+                            <div class="producto-grafico-pista">
+                                <div
+                                    class="producto-grafico-barra"
+                                    style="width: {ancho_barra:.2f}%"
+                                    tabindex="0"
+                                >
+                                    <span>{producto.unidades_vendidas}</span>
+                                    <div class="producto-grafico-tooltip">
+                                        <div><strong>{nombre_producto}</strong></div>
+                                        <div>Unidades vendidas: {producto.unidades_vendidas}</div>
+                                        <div>Total facturado: {formato_moneda(producto.total_facturado)}</div>
+                                        <div class="producto-ganancia">
+                                            Ganancia acumulada: {formato_moneda(producto.ganancia_generada)}
+                                        </div>
+                                        <div class="producto-costo">
+                                            Costo acumulado: {formato_moneda(producto.costo_acumulado)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        """)
+                    )
+
+                grafico_productos_html = dedent("""
+                    <style>
+                        .producto-grafico {
+                            margin: 0.5rem 0 1rem;
+                        }
+                        .producto-grafico-fila {
+                            display: grid;
+                            grid-template-columns: minmax(9rem, 15rem) 1fr;
+                            gap: 0.75rem;
+                            align-items: center;
+                            margin: 0.7rem 0;
+                        }
+                        .producto-grafico-nombre {
+                            font-size: 0.875rem;
+                            line-height: 1.25rem;
+                            text-align: right;
+                        }
+                        .producto-grafico-pista {
+                            height: 1.8rem;
+                            border-radius: 0.35rem;
+                            background: rgba(128, 128, 128, 0.16);
+                            overflow: visible;
+                        }
+                        .producto-grafico-barra {
+                            position: relative;
+                            box-sizing: border-box;
+                            min-width: 2.8rem;
+                            height: 100%;
+                            padding: 0 0.55rem;
+                            border-radius: 0.35rem;
+                            background: #4c78a8;
+                            color: #ffffff;
+                            font-size: 0.875rem;
+                            font-weight: 600;
+                            line-height: 1.8rem;
+                            cursor: help;
+                            outline-offset: 2px;
+                        }
+                        .producto-grafico-tooltip {
+                            position: absolute;
+                            z-index: 20;
+                            left: 0;
+                            bottom: calc(100% + 0.5rem);
+                            visibility: hidden;
+                            width: max-content;
+                            min-width: 15rem;
+                            padding: 0.65rem 0.8rem;
+                            border: 1px solid #d1d5db;
+                            border-radius: 0.4rem;
+                            background: #ffffff;
+                            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+                            color: #1f2937;
+                            font-size: 0.82rem;
+                            font-weight: 400;
+                            line-height: 1.4rem;
+                            opacity: 0;
+                            transition: opacity 0.12s ease;
+                            pointer-events: none;
+                        }
+                        .producto-grafico-barra:hover .producto-grafico-tooltip,
+                        .producto-grafico-barra:focus .producto-grafico-tooltip {
+                            visibility: visible;
+                            opacity: 1;
+                        }
+                        .producto-ganancia {
+                            color: #147a3f;
+                            font-weight: 600;
+                        }
+                        .producto-costo {
+                            color: #b42318;
+                            font-weight: 600;
+                        }
+                        .producto-grafico-eje {
+                            margin-left: calc(min(15rem, 40%) + 0.75rem);
+                            color: #6b7280;
+                            font-size: 0.8rem;
+                        }
+                        @media (max-width: 640px) {
+                            .producto-grafico-fila {
+                                grid-template-columns: 1fr;
+                                gap: 0.2rem;
+                            }
+                            .producto-grafico-nombre {
+                                text-align: left;
+                            }
+                            .producto-grafico-eje {
+                                margin-left: 0;
+                            }
+                        }
+                    </style>
+                    <div class="producto-grafico">
+                """) + "".join(filas_productos) + dedent("""
+                        <div class="producto-grafico-eje">Unidades vendidas</div>
+                    </div>
+                """)
+                st.markdown(grafico_productos_html, unsafe_allow_html=True)
             else:
                 st.info("No hay productos vendidos en el mes seleccionado.")
+
+            st.divider()
+            ventas_por_mes = obtener_ventas_por_mes_anio(session, anio)
+            mostrar_grafico_ventas_periodo(
+                f"Ventas por mes de {anio}",
+                ventas_por_mes,
+            )
+            mostrar_grafico_ventas_periodo(
+                "Ventas semanales del mes seleccionado",
+                resumen_mes.ventas_por_semana,
+            )
             
             # Selector de día específico para ver detalle
             st.divider()

@@ -93,8 +93,18 @@ class ProductoVendidoMes:
     id_producto: int
     nombre_producto: str
     unidades_vendidas: int
+    total_facturado: Decimal
     costo_acumulado: Decimal
     ganancia_generada: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class PuntoVentasPeriodo:
+    etiqueta: str
+    cantidad_ventas: int
+    total_facturado: Decimal
+    costo_total: Decimal
+    ganancia_total: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,3 +117,4 @@ class ResumenMesCalendario:
     total_ganancia: Decimal
     cantidad_ventas: int
     productos_mas_vendidos: list[ProductoVendidoMes]
+    ventas_por_semana: list[PuntoVentasPeriodo]
