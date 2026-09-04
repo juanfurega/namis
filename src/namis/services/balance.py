@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from namis.exceptions import VentaNoEncontradaError
 from namis.models.detalle_venta import DetalleVenta
-from namis.models.detalle_bolsa_venta import DetalleBolsaVenta
 from namis.models.venta import Venta
 from namis.schemas.balance import (
     BalancePorMedioPago,
@@ -93,7 +92,7 @@ def _cargar_venta(session: Session, id_venta: int) -> Venta:
             selectinload(Venta.cliente),
             selectinload(Venta.promocion),
             selectinload(Venta.detalles).selectinload(DetalleVenta.producto),
-            selectinload(Venta.bolsas).selectinload(DetalleBolsaVenta.insumo),
+            selectinload(Venta.bolsas),
         )
     )
     if venta is None:
@@ -113,7 +112,7 @@ def _ventas_en_rango(session: Session, desde: date, hasta: date) -> list[Venta]:
                 selectinload(Venta.cliente),
                 selectinload(Venta.promocion),
                 selectinload(Venta.detalles).selectinload(DetalleVenta.producto),
-                selectinload(Venta.bolsas).selectinload(DetalleBolsaVenta.insumo),
+                selectinload(Venta.bolsas),
             )
             .order_by(Venta.fecha.desc(), Venta.id_venta.desc())
         ).all()

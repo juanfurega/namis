@@ -9,7 +9,6 @@ from namis.models.base import Base
 
 if TYPE_CHECKING:
     from namis.models.insumo_historial import InsumoHistorialPrecio
-    from namis.models.detalle_bolsa_venta import DetalleBolsaVenta
     from namis.models.receta import Receta
 
 
@@ -27,4 +26,3 @@ class Insumo(Base):
         cascade="all, delete-orphan",
     )
     recetas: Mapped[list[Receta]] = relationship(back_populates="insumo")
-    bolsas_utilizadas: Mapped[list[DetalleBolsaVenta]] = relationship(back_populates="insumo")

@@ -9,7 +9,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from namis.models.base import Base
 
 if TYPE_CHECKING:
-    from namis.models.insumo import Insumo
     from namis.models.venta import Venta
 
 
@@ -33,4 +32,3 @@ class DetalleBolsaVenta(Base):
     costo_total: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
     venta: Mapped[Venta] = relationship(back_populates="bolsas")
-    insumo: Mapped[Insumo | None] = relationship(back_populates="bolsas_utilizadas")
