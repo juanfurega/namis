@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -345,42 +345,23 @@ def _crear_punto_periodo(
     )
 
 
-def _resumir_ventas_por_semana(
+def _resumir_ventas_por_dia(
     ventas: list[Venta],
     anio: int,
     mes: int,
 ) -> list[PuntoVentasPeriodo]:
     ultimo_dia = calendar.monthrange(anio, mes)[1]
-    inicio_mes = date(anio, mes, 1)
-    fin_mes = date(anio, mes, ultimo_dia)
-    inicio_semana = inicio_mes - timedelta(days=inicio_mes.weekday())
-    ventas_por_inicio: dict[date, list[Venta]] = {}
+    ventas_por_dia: dict[int, list[Venta]] = {}
 
     for venta in ventas:
         if venta.fecha is None:
             continue
-        fecha_venta = venta.fecha.date()
-        lunes = fecha_venta - timedelta(days=fecha_venta.weekday())
-        ventas_por_inicio.setdefault(lunes, []).append(venta)
+        ventas_por_dia.setdefault(venta.fecha.day, []).append(venta)
 
-    resultado: list[PuntoVentasPeriodo] = []
-    lunes = inicio_semana
-    numero_semana = 1
-    while lunes <= fin_mes:
-        domingo = lunes + timedelta(days=6)
-        desde_visible = max(lunes, inicio_mes)
-        hasta_visible = min(domingo, fin_mes)
-        etiqueta = (
-            f"Sem. {numero_semana} "
-            f"({desde_visible.day}-{hasta_visible.day})"
-        )
-        resultado.append(
-            _crear_punto_periodo(etiqueta, ventas_por_inicio.get(lunes, []))
-        )
-        lunes += timedelta(days=7)
-        numero_semana += 1
-
-    return resultado
+    return [
+        _crear_punto_periodo(str(dia), ventas_por_dia.get(dia, []))
+        for dia in range(1, ultimo_dia + 1)
+    ]
 
 
 def obtener_ventas_por_mes_anio(
@@ -463,5 +444,5 @@ def obtener_resumen_mes_calendario(
         total_ganancia=money(total_ganancia),
         cantidad_ventas=len(ventas),
         productos_mas_vendidos=_resumir_productos_mes(ventas),
-        ventas_por_semana=_resumir_ventas_por_semana(ventas, anio, mes),
+        ventas_por_dia=_resumir_ventas_por_dia(ventas, anio, mes),
     )

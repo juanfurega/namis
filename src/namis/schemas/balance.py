@@ -117,4 +117,4 @@ class ResumenMesCalendario:
     total_ganancia: Decimal
     cantidad_ventas: int
     productos_mas_vendidos: list[ProductoVendidoMes]
-    ventas_por_semana: list[PuntoVentasPeriodo]
+    ventas_por_dia: list[PuntoVentasPeriodo]

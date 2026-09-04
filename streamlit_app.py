@@ -1441,7 +1441,7 @@ with tab5:
         """) + "".join(anclas) + dedent("""
             </div>
         """)
-        st.markdown(grafico_html, unsafe_allow_html=True)
+        st.html(grafico_html)
     
     with session_scope() as session:
         from namis.services import obtener_resumen_dia, obtener_resumen_mes_calendario, obtener_ventas_por_mes_anio, listar_historial_dia_por_cliente
@@ -1690,19 +1690,19 @@ with tab5:
                         <div class="producto-grafico-eje">Unidades vendidas</div>
                     </div>
                 """)
-                st.markdown(grafico_productos_html, unsafe_allow_html=True)
+                st.html(grafico_productos_html)
             else:
                 st.info("No hay productos vendidos en el mes seleccionado.")
 
             st.divider()
             ventas_por_mes = obtener_ventas_por_mes_anio(session, anio)
             mostrar_grafico_ventas_periodo(
-                f"Ventas por mes de {anio}",
-                ventas_por_mes,
+                "Ventas diarias del mes seleccionado",
+                resumen_mes.ventas_por_dia,
             )
             mostrar_grafico_ventas_periodo(
-                "Ventas semanales del mes seleccionado",
-                resumen_mes.ventas_por_semana,
+                f"Ventas por mes de {anio}",
+                ventas_por_mes,
             )
             
             # Selector de día específico para ver detalle
